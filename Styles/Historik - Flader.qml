@@ -128,54 +128,54 @@
       <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
     </edittype>
   </edittypes>
-  <renderer-v2 attr="element_ko" forceraster="0" symbollevels="0" type="categorizedSymbol" enableorderby="0">
-    <categories>
-      <category render="true" symbol="0" value="ANA-01" label="ANA-01 Anden anvendelse"/>
-      <category render="true" symbol="1" value="ANA-02" label="ANA-02 Udenfor drift og pleje"/>
-      <category render="true" symbol="2" value="ANA-03" label="ANA-03 Private haver"/>
-      <category render="true" symbol="3" value="BE-00" label="BE-00 Belægninger"/>
-      <category render="true" symbol="4" value="BE-01" label="BE-01 Faste belægninger"/>
-      <category render="true" symbol="5" value="BE-02" label="BE-02 Grus"/>
-      <category render="true" symbol="6" value="BE-03" label="BE-03 Trimmet grus"/>
-      <category render="true" symbol="7" value="BE-04" label="BE-04 Andre løse belægninger"/>
-      <category render="true" symbol="8" value="BE-05" label="BE-05 Sportsbelægninger"/>
-      <category render="true" symbol="9" value="BE-06" label="BE-06 Faldunderlag"/>
-      <category render="true" symbol="10" value="BL-00" label="BL-00 Blomster"/>
-      <category render="true" symbol="11" value="BL-01" label="BL-01 Sommerblomster"/>
-      <category render="true" symbol="12" value="BL-04" label="BL-04 Roser og stauder"/>
-      <category render="true" symbol="13" value="BL-05" label="BL-05 Klatreplanter"/>
-      <category render="true" symbol="14" value="BU-00" label="BU-00 Buske"/>
-      <category render="true" symbol="15" value="BU-01" label="BU-01 Bunddækkende buske"/>
-      <category render="true" symbol="16" value="BU-02" label="BU-02 Busketter"/>
-      <category render="true" symbol="17" value="BU-03" label="BU-03 Krat og hegn"/>
-      <category render="true" symbol="18" value="BU-04" label="BU-04 Bunddækkende krat"/>
-      <category render="true" symbol="19" value="GR-00" label="GR-00 Græs"/>
-      <category render="true" symbol="20" value="GR-01" label="GR-01 Brugsplæner"/>
-      <category render="true" symbol="21" value="GR-02" label="GR-02 Græsflader"/>
-      <category render="true" symbol="22" value="GR-03" label="GR-03 Sportsplæner"/>
-      <category render="true" symbol="23" value="GR-04" label="GR-04 Fælledgræs"/>
-      <category render="true" symbol="24" value="GR-06" label="GR-06 Naturgræs"/>
-      <category render="true" symbol="25" value="GR-07" label="GR-07 Græsning"/>
-      <category render="true" symbol="26" value="GR-08" label="GR-08 Strande og klitter"/>
-      <category render="true" symbol="27" value="GR-09" label="GR-09 §3 Områder"/>
-      <category render="true" symbol="28" value="HÆ-00" label="HÆ-00 Hække"/>
-      <category render="true" symbol="29" value="HÆ-01" label="HÆ-01 Hække og pur"/>
-      <category render="true" symbol="30" value="HÆ-02" label="HÆ-02 Hækkekrat"/>
-      <category render="true" symbol="31" value="TR-00" label="TR-00 Træer"/>
-      <category render="true" symbol="32" value="TR-03" label="TR-00 Trægruppe"/>
-      <category render="true" symbol="33" value="TR-08" label="TR-08 Skove og lunde"/>
-      <category render="true" symbol="34" value="TR-09" label="TR-09 Fælledskove"/>
-      <category render="true" symbol="35" value="UD-00" label="UD-00 Terrænudstyr"/>
-      <category render="true" symbol="36" value="UD-01" label="UD-01 Andet terrænudstyr"/>
-      <category render="true" symbol="37" value="UD-02" label="UD-02 Trapper"/>
-      <category render="true" symbol="38" value="UD-06" label="UD-06 Legeudstyr"/>
-      <category render="true" symbol="39" value="VA-00" label="VA-00 Vand"/>
-      <category render="true" symbol="40" value="VA-01" label="VA-01 Bassiner"/>
-      <category render="true" symbol="41" value="VA-02" label="VA-02 Vandhuller"/>
-      <category render="true" symbol="42" value="VA-03" label="VA-03 Søer og gadekær"/>
-      <category render="true" symbol="43" value="VA-05" label="VA-05 Rørskove"/>
-      <category render="true" symbol="44" value="" label="Ikke klassificeret"/>
-    </categories>
+  <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">
+    <rules key="{fbcf18ef-2344-44bb-a9ce-114bcda54165}">
+      <rule filter="&quot;element_ko&quot; = 'ANA-01'" key="{bd5c0e15-cf0a-4804-b44b-31375edc8326}" symbol="0" label="ANA-01 Anden anvendelse"/>
+      <rule filter="&quot;element_ko&quot; = 'ANA-02'" key="{3c8dc850-6a4b-4cf2-9307-bfd2d0c0bae4}" symbol="1" label="ANA-02 Udenfor drift og pleje"/>
+      <rule filter="&quot;element_ko&quot; = 'ANA-03'" key="{3566f03a-a5f5-48a4-a8ce-fa4aff2b5305}" symbol="2" label="ANA-03 Private haver"/>
+      <rule filter="&quot;element_ko&quot; = 'BE-00'" key="{f4f8d478-84dc-4543-8a3a-e391ba1338f5}" symbol="3" label="BE-00 Belægninger"/>
+      <rule filter="&quot;element_ko&quot; = 'BE-01'" key="{5f77c52c-0e5e-482f-bd1e-06989729a3bc}" symbol="4" label="BE-01 Faste belægninger"/>
+      <rule filter="&quot;element_ko&quot; = 'BE-02'" key="{2d1f838f-d597-43c3-94f7-c788bd0ce160}" symbol="5" label="BE-02 Grus"/>
+      <rule filter="&quot;element_ko&quot; = 'BE-03'" key="{1f1993b3-6ad2-4a2b-9da3-7a431da202ac}" symbol="6" label="BE-03 Trimmet grus"/>
+      <rule filter="&quot;element_ko&quot; = 'BE-04'" key="{c39498db-8f76-4af8-a6b1-f55497ac15b6}" symbol="7" label="BE-04 Andre løse belægninger"/>
+      <rule filter="&quot;element_ko&quot; = 'BE-05'" key="{d98001ef-2458-4a0d-8547-90ef7a7018c4}" symbol="8" label="BE-05 Sportsbelægninger"/>
+      <rule filter="&quot;element_ko&quot; = 'BE-06'" key="{8bd0350d-f985-4d8d-8b9a-10a50992fdf3}" symbol="9" label="BE-06 Faldunderlag"/>
+      <rule filter="&quot;element_ko&quot; = 'BL-00'" key="{f7d8e633-ed32-4679-bc80-853ee350187c}" symbol="10" label="BL-00 Blomster"/>
+      <rule filter="&quot;element_ko&quot; = 'BL-01'" key="{3e5397ad-ccba-4004-8b69-e86736cb9f58}" symbol="11" label="BL-01 Sommerblomster"/>
+      <rule filter="&quot;element_ko&quot; = 'BL-04'" key="{1db79eab-de1d-44d2-b71b-c7c32bb7ddb8}" symbol="12" label="BL-04 Roser og stauder"/>
+      <rule filter="&quot;element_ko&quot; = 'BL-05'" key="{36986fd1-17a7-410b-8939-6b42ac52fb38}" symbol="13" label="BL-05 Klatreplanter"/>
+      <rule filter="&quot;element_ko&quot; = 'BU-00'" key="{2f9ef269-5528-4a07-a8b4-c2be7a06662b}" symbol="14" label="BU-00 Buske"/>
+      <rule filter="&quot;element_ko&quot; = 'BU-01'" key="{aed229a7-221b-4c8f-a783-0111377748fc}" symbol="15" label="BU-01 Bunddækkende buske"/>
+      <rule filter="&quot;element_ko&quot; = 'BU-02'" key="{75fb7fb3-1999-43f2-8e48-91ac11f3b0b3}" symbol="16" label="BU-02 Busketter"/>
+      <rule filter="&quot;element_ko&quot; = 'BU-03'" key="{9072b634-ce8e-42b2-a432-8477005f300f}" symbol="17" label="BU-03 Krat og hegn"/>
+      <rule filter="&quot;element_ko&quot; = 'BU-04'" key="{dbd86a0f-598d-40c0-8f3c-e0cef8467994}" symbol="18" label="BU-04 Bunddækkende krat"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-00'" key="{8302f858-2639-496d-8447-9d2536ba2def}" symbol="19" label="GR-00 Græs"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-01'" key="{c5cae6e3-7cf9-4e77-ad8d-e135e6b57aeb}" symbol="20" label="GR-01 Brugsplæner"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-02'" key="{f21ea979-9e2b-4277-bdfc-3b5d2e477b0c}" symbol="21" label="GR-02 Græsflader"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-03'" key="{9a3f4b19-9c42-4cac-b064-beedbbf00078}" symbol="22" label="GR-03 Sportsplæner"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-04'" key="{2281af67-b8cf-4536-815e-b7e0edbcec6b}" symbol="23" label="GR-04 Fælledgræs"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-06'" key="{88eb15fb-5f43-40b2-95df-91d559922eb2}" symbol="24" label="GR-06 Naturgræs"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-07'" key="{98204965-38a8-4859-a110-b82cc5fe5c2a}" symbol="25" label="GR-07 Græsning"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-08'" key="{7304828a-c37f-436d-88d7-f9f7568ef280}" symbol="26" label="GR-08 Strande og klitter"/>
+      <rule filter="&quot;element_ko&quot; = 'GR-09'" key="{738a8967-cc16-4c18-913d-9a2758ded67a}" symbol="27" label="GR-09 §3 Områder"/>
+      <rule filter="&quot;element_ko&quot; = 'HÆ-00' OR &quot;element_ko&quot; = 'H�-00'" key="{48bcdd7c-2e43-4800-be97-317f2ed4fc84}" symbol="28" label="HÆ-00 Hække"/>
+      <rule filter="&quot;element_ko&quot; = 'HÆ-01' OR &quot;element_ko&quot; = 'H�-01'" key="{e9aa6d68-744e-4f18-99c4-f3ddfc2f641d}" symbol="29" label="HÆ-01 Hække og pur"/>
+      <rule filter="&quot;element_ko&quot; = 'HÆ-02' OR &quot;element_ko&quot; = 'H�-02'" key="{385d58a2-3438-469e-9a33-1bff06172da6}" symbol="30" label="HÆ-02 Hækkekrat"/>
+      <rule filter="&quot;element_ko&quot; = 'TR-00'" key="{e9e1ba31-cf55-4533-a383-65e4492bc145}" symbol="31" label="TR-00 Træer"/>
+      <rule filter="&quot;element_ko&quot; = 'TR-03'" key="{bb5d4315-2742-4375-8ed2-194145d557db}" symbol="32" label="TR-00 Trægruppe"/>
+      <rule filter="&quot;element_ko&quot; = 'TR-08'" key="{3a5d59d2-482f-490b-987e-1b6bd392675d}" symbol="33" label="TR-08 Skove og lunde"/>
+      <rule filter="&quot;element_ko&quot; = 'TR-09'" key="{23cf78a9-fe8a-4148-b994-ab6323dd28ae}" symbol="34" label="TR-09 Fælledskove"/>
+      <rule filter="&quot;element_ko&quot; = 'UD-00'" key="{1cfe89a6-76d7-4e54-a947-359ff10938c1}" symbol="35" label="UD-00 Terrænudstyr"/>
+      <rule filter="&quot;element_ko&quot; = 'UD-01'" key="{76e5338e-2829-493b-bc88-b404a2aa63e4}" symbol="36" label="UD-01 Andet terrænudstyr"/>
+      <rule filter="&quot;element_ko&quot; = 'UD-02'" key="{9df7f106-c250-41b1-b2de-65afe982f8bb}" symbol="37" label="UD-02 Trapper"/>
+      <rule filter="&quot;element_ko&quot; = 'UD-06'" key="{9c233c44-f652-405c-84bd-4c7d8eb916bc}" symbol="38" label="UD-06 Legeudstyr"/>
+      <rule filter="&quot;element_ko&quot; = 'VA-00'" key="{92fda5b4-92ed-47f1-bd22-9a316cbd1994}" symbol="39" label="VA-00 Vand"/>
+      <rule filter="&quot;element_ko&quot; = 'VA-01'" key="{b2df3232-0aad-42b1-bcbd-afb81d4d849f}" symbol="40" label="VA-01 Bassiner"/>
+      <rule filter="&quot;element_ko&quot; = 'VA-02'" key="{cd03cd6e-6805-4108-9ff5-f6f58ac56b42}" symbol="41" label="VA-02 Vandhuller"/>
+      <rule filter="&quot;element_ko&quot; = 'VA-03'" key="{ccc80fa3-a872-4cef-aefa-08b7f551da05}" symbol="42" label="VA-03 Søer og gadekær"/>
+      <rule filter="&quot;element_ko&quot; = 'VA-05'" key="{37ab9e40-269a-452c-9837-d22fd7d845b5}" symbol="43" label="VA-05 Rørskove"/>
+      <rule filter="ELSE" key="{85a7bfc0-acf1-4188-a7a3-4688dd9d3906}" symbol="44" label="Ikke klassificeret"/>
+    </rules>
     <symbols>
       <symbol alpha="1" clip_to_extent="1" type="fill" name="0">
         <layer pass="0" class="SimpleFill" locked="0">
@@ -989,25 +989,6 @@
         </layer>
       </symbol>
     </symbols>
-    <source-symbol>
-      <symbol alpha="1" clip_to_extent="1" type="fill" name="0">
-        <layer pass="0" class="SimpleFill" locked="1">
-          <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
-          <prop k="color" v="158,230,99,0"/>
-          <prop k="joinstyle" v="bevel"/>
-          <prop k="offset" v="0,0"/>
-          <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
-          <prop k="offset_unit" v="MM"/>
-          <prop k="outline_color" v="0,0,0,0"/>
-          <prop k="outline_style" v="no"/>
-          <prop k="outline_width" v="0.26"/>
-          <prop k="outline_width_unit" v="MM"/>
-          <prop k="style" v="no"/>
-        </layer>
-      </symbol>
-    </source-symbol>
-    <rotation/>
-    <sizescale scalemethod="diameter"/>
   </renderer-v2>
   <labeling type="simple"/>
   <customproperties>
