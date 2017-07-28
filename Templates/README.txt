@@ -1,0 +1,1 @@
+QGIS-templates. De ligger allerede i projektet, men er også vedlagt seperat.
