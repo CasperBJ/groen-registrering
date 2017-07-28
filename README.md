@@ -54,7 +54,7 @@ Det andet login er user: 'backadm' password: 'qgis', som benyttes i et kommandos
 
 Version 2.18.10 er benyttet
 
-I mappen ligger der en projektfil.
+I mappen ligger der en projektfil, groenreg.qgs.
 
 QGIS-projektet indeholder følgende lagstruktur:
 - Områder (Gruppe)
