@@ -233,10 +233,10 @@
   <mapcanvas>
     <units>meters</units>
     <extent>
-      <xmin>666278.38435035652946681</xmin>
-      <ymin>6177182.58873593155294657</ymin>
-      <xmax>714597.91564964374992996</xmax>
-      <ymax>6204765.4012640668079257</ymax>
+      <xmin>666278.3843503569951281</xmin>
+      <ymin>6177182.58873592875897884</ymin>
+      <xmax>714597.91564964398276061</xmax>
+      <ymax>6204765.40126406960189342</ymax>
     </extent>
     <rotation>0</rotation>
     <projections>1</projections>
@@ -1611,6 +1611,12 @@
       <blendMode>0</blendMode>
     </maplayer>
     <maplayer simplifyAlgorithm="0" minimumScale="0" maximumScale="8000" simplifyDrawingHints="1" minLabelScale="1" maxLabelScale="1e+08" simplifyDrawingTol="1" readOnly="1" geometry="Polygon" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="1" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
+      <extent>
+        <xmin>678720.8125</xmin>
+        <ymin>6179321</ymin>
+        <xmax>702295.1875</xmax>
+        <ymax>6202874.5</ymax>
+      </extent>
       <id>bygning20170721083557460</id>
       <datasource>dbname='groenreg' host=localhost port=5432 sslmode=disable key='id' table="basiskort"."bygning" (geom) sql=</datasource>
       <keywordList>
@@ -29539,8 +29545,8 @@ def my_form_open(dialog, layer, feature):
               </symbols>
             </renderer-v2>
             <labeling type="rule-based">
-              <rules key="{126091f0-2f03-4f9a-8d17-6634207c9be9}">
-                <rule filter=" &quot;arbejdssted&quot; = attribute(@atlas_feature, 'pg_distrikt_nr') &#xd;&#xa;and distance ( $geometry,@atlas_geometry ) = 0&#xd;&#xa;and  &quot;element_kode&quot; IN ('BL-05')" key="{579939a8-9037-48f3-b833-a369be19e184}">
+              <rules key="{9892b7e0-531e-44ed-911d-51dcb6142ad4}">
+                <rule filter=" &quot;arbejdssted&quot; = attribute(@atlas_feature, 'pg_distrikt_nr') &#xd;&#xa;and distance ( $geometry,@atlas_geometry ) = 0&#xd;&#xa;and  &quot;element_kode&quot; IN ('BL-05')" key="{d4129948-9dc4-4623-80fe-ef658c3e8493}">
                   <settings>
                     <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="0,0,0,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="underelement_kode || ' (' || &quot;litra&quot;||')'" namedStyle="Normal" fontWordSpacing="0" useSubstitutions="0">
                       <substitutions/>
@@ -29899,6 +29905,8 @@ def my_form_open(dialog, layer, feature):
                   <attributeEditorField showLabel="1" index="39" name="litra"/>
                 </attributeEditorContainer>
                 <attributeEditorContainer showLabel="1" visibilityExpressionEnabled="0" visibilityExpression="" name="" groupBox="1" columnCount="1">
+                  <attributeEditorField showLabel="1" index="33" name="laengde"/>
+                  <attributeEditorField showLabel="1" index="34" name="bredde"/>
                   <attributeEditorField showLabel="1" index="35" name="diameter"/>
                   <attributeEditorField showLabel="1" index="36" name="hoejde"/>
                 </attributeEditorContainer>
@@ -30600,6 +30608,8 @@ def my_form_open(dialog, layer, feature):
                   <attributeEditorField showLabel="1" index="39" name="litra"/>
                 </attributeEditorContainer>
                 <attributeEditorContainer showLabel="1" visibilityExpressionEnabled="0" visibilityExpression="" name="" groupBox="1" columnCount="1">
+                  <attributeEditorField showLabel="1" index="33" name="laengde"/>
+                  <attributeEditorField showLabel="1" index="34" name="bredde"/>
                   <attributeEditorField showLabel="1" index="35" name="diameter"/>
                   <attributeEditorField showLabel="1" index="36" name="hoejde"/>
                 </attributeEditorContainer>
@@ -30991,8 +31001,8 @@ def my_form_open(dialog, layer, feature):
               </symbols>
             </renderer-v2>
             <labeling type="rule-based">
-              <rules key="{03466384-cf69-4baf-ba37-cfe9688610dd}">
-                <rule filter=" &quot;hovedelement_kode&quot;  =  'ANA' " key="{7f1065cb-a8cb-4a8c-b220-4805505afce4}">
+              <rules key="{4edfa86b-686d-47ef-9b35-0b7dcf1666b2}">
+                <rule filter=" &quot;hovedelement_kode&quot;  =  'ANA' " key="{bdab12b8-ba7e-4d44-82f9-ee5dff9bf104}">
                   <settings>
                     <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="0,0,0,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="9" fieldName="underelement_kode" namedStyle="Normal" fontWordSpacing="0" useSubstitutions="0">
                       <substitutions/>
@@ -31351,6 +31361,8 @@ def my_form_open(dialog, layer, feature):
                   <attributeEditorField showLabel="1" index="39" name="litra"/>
                 </attributeEditorContainer>
                 <attributeEditorContainer showLabel="1" visibilityExpressionEnabled="0" visibilityExpression="" name="" groupBox="1" columnCount="1">
+                  <attributeEditorField showLabel="1" index="33" name="laengde"/>
+                  <attributeEditorField showLabel="1" index="34" name="bredde"/>
                   <attributeEditorField showLabel="1" index="35" name="diameter"/>
                   <attributeEditorField showLabel="1" index="36" name="hoejde"/>
                 </attributeEditorContainer>
@@ -31781,8 +31793,8 @@ def my_form_open(dialog, layer, feature):
               </symbols>
             </renderer-v2>
             <labeling type="rule-based">
-              <rules key="{470a2ea0-0eb0-4cc1-82e7-8d3b1ddab26e}">
-                <rule filter=" &quot;hovedelement_kode&quot;  =  'BL' " key="{49b36b65-ef94-43e7-b228-e0fe5ca7aadb}">
+              <rules key="{3fde3296-cc9d-45d2-9b0b-d1649948ec90}">
+                <rule filter=" &quot;hovedelement_kode&quot;  =  'BL' " key="{fd91a699-89ef-48e1-820c-b59649b8a305}">
                   <settings>
                     <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="0,0,0,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="9" fieldName="underelement_kode" namedStyle="Normal" fontWordSpacing="0" useSubstitutions="0">
                       <substitutions/>
@@ -32141,6 +32153,8 @@ def my_form_open(dialog, layer, feature):
                   <attributeEditorField showLabel="1" index="39" name="litra"/>
                 </attributeEditorContainer>
                 <attributeEditorContainer showLabel="1" visibilityExpressionEnabled="0" visibilityExpression="" name="" groupBox="1" columnCount="1">
+                  <attributeEditorField showLabel="1" index="33" name="laengde"/>
+                  <attributeEditorField showLabel="1" index="34" name="bredde"/>
                   <attributeEditorField showLabel="1" index="35" name="diameter"/>
                   <attributeEditorField showLabel="1" index="36" name="hoejde"/>
                 </attributeEditorContainer>
@@ -32514,8 +32528,8 @@ def my_form_open(dialog, layer, feature):
               </symbols>
             </renderer-v2>
             <labeling type="rule-based">
-              <rules key="{36147994-95dc-4c4f-ae3e-58b0e96fa571}">
-                <rule filter=" &quot;hovedelement_kode&quot;  =  'REN' " key="{5d9028ad-7eda-42ec-8287-e3f7c4c493a9}">
+              <rules key="{723b1556-f8aa-4737-a09e-2198300499bf}">
+                <rule filter=" &quot;hovedelement_kode&quot;  =  'REN' " key="{cf488e1e-ec14-42a6-9c89-204d84cc0432}">
                   <settings>
                     <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="0,0,0,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="9" fieldName="underelement_kode" namedStyle="Normal" fontWordSpacing="0" useSubstitutions="0">
                       <substitutions/>
@@ -32874,6 +32888,8 @@ def my_form_open(dialog, layer, feature):
                   <attributeEditorField showLabel="1" index="39" name="litra"/>
                 </attributeEditorContainer>
                 <attributeEditorContainer showLabel="1" visibilityExpressionEnabled="0" visibilityExpression="" name="" groupBox="1" columnCount="1">
+                  <attributeEditorField showLabel="1" index="33" name="laengde"/>
+                  <attributeEditorField showLabel="1" index="34" name="bredde"/>
                   <attributeEditorField showLabel="1" index="35" name="diameter"/>
                   <attributeEditorField showLabel="1" index="36" name="hoejde"/>
                 </attributeEditorContainer>
@@ -33828,8 +33844,8 @@ def my_form_open(dialog, layer, feature):
               </symbols>
             </renderer-v2>
             <labeling type="rule-based">
-              <rules key="{4ceef019-d983-445a-b207-6793f6036e23}">
-                <rule filter=" &quot;hovedelement_kode&quot;  =  'UD' " key="{5ed01682-2d31-4a3a-ae36-9263be04943a}">
+              <rules key="{b0b9dcef-0605-4d15-be60-1ac41ca4cd08}">
+                <rule filter=" &quot;hovedelement_kode&quot;  =  'UD' " key="{540d5161-215a-4d59-aaea-18c51b893dc7}">
                   <settings>
                     <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="0,0,0,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="9" fieldName="underelement_kode" namedStyle="Normal" fontWordSpacing="0" useSubstitutions="0">
                       <substitutions/>
@@ -34188,6 +34204,8 @@ def my_form_open(dialog, layer, feature):
                   <attributeEditorField showLabel="1" index="39" name="litra"/>
                 </attributeEditorContainer>
                 <attributeEditorContainer showLabel="1" visibilityExpressionEnabled="0" visibilityExpression="" name="" groupBox="1" columnCount="1">
+                  <attributeEditorField showLabel="1" index="33" name="laengde"/>
+                  <attributeEditorField showLabel="1" index="34" name="bredde"/>
                   <attributeEditorField showLabel="1" index="35" name="diameter"/>
                   <attributeEditorField showLabel="1" index="36" name="hoejde"/>
                 </attributeEditorContainer>
@@ -34645,8 +34663,8 @@ def my_form_open(dialog, layer, feature):
               </symbols>
             </renderer-v2>
             <labeling type="rule-based">
-              <rules key="{faec546f-fc3c-4f84-b6d5-6a774cb6e1da}">
-                <rule filter=" &quot;hovedelement_kode&quot;  =  'TR' " key="{60ad2907-bd91-471d-90f4-0f43e9db7bd5}">
+              <rules key="{dffdb393-383e-49e7-badd-f7d064036957}">
+                <rule filter=" &quot;hovedelement_kode&quot;  =  'TR' " key="{37a49d2c-889c-402a-b04b-16b9794b6068}">
                   <settings>
                     <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="0,0,0,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="9" fieldName="underelement_kode" namedStyle="Normal" fontWordSpacing="0" useSubstitutions="0">
                       <substitutions/>
@@ -35005,6 +35023,8 @@ def my_form_open(dialog, layer, feature):
                   <attributeEditorField showLabel="1" index="39" name="litra"/>
                 </attributeEditorContainer>
                 <attributeEditorContainer showLabel="1" visibilityExpressionEnabled="0" visibilityExpression="" name="" groupBox="1" columnCount="1">
+                  <attributeEditorField showLabel="1" index="33" name="laengde"/>
+                  <attributeEditorField showLabel="1" index="34" name="bredde"/>
                   <attributeEditorField showLabel="1" index="35" name="diameter"/>
                   <attributeEditorField showLabel="1" index="36" name="hoejde"/>
                 </attributeEditorContainer>
@@ -36261,6 +36281,8 @@ def my_form_open(dialog, layer, feature):
             <attributeEditorField showLabel="1" index="39" name="litra"/>
           </attributeEditorContainer>
           <attributeEditorContainer showLabel="1" visibilityExpressionEnabled="0" visibilityExpression="" name="" groupBox="1" columnCount="1">
+            <attributeEditorField showLabel="1" index="33" name="laengde"/>
+            <attributeEditorField showLabel="1" index="34" name="bredde"/>
             <attributeEditorField showLabel="1" index="35" name="diameter"/>
             <attributeEditorField showLabel="1" index="36" name="hoejde"/>
           </attributeEditorContainer>
@@ -36522,7 +36544,7 @@ def my_form_open(dialog, layer, feature):
                     <prop k="customdash_unit" v="MM"/>
                     <prop k="draw_inside_polygon" v="0"/>
                     <prop k="joinstyle" v="bevel"/>
-                    <prop k="line_color" v="163,163,163,255"/>
+                    <prop k="line_color" v="96,96,96,255"/>
                     <prop k="line_style" v="solid"/>
                     <prop k="line_width" v="0.26"/>
                     <prop k="line_width_unit" v="MM"/>
@@ -36556,6 +36578,7 @@ def my_form_open(dialog, layer, feature):
             </renderer-v2>
             <labeling type="simple"/>
             <customproperties>
+              <property key="embeddedWidgets/count" value="0"/>
               <property key="labeling" value="pal"/>
               <property key="labeling/addDirectionSymbol" value="false"/>
               <property key="labeling/angleOffset" value="0"/>
@@ -36880,7 +36903,7 @@ def my_form_open(dialog, layer, feature):
               <prop k="customdash_unit" v="MM"/>
               <prop k="draw_inside_polygon" v="0"/>
               <prop k="joinstyle" v="bevel"/>
-              <prop k="line_color" v="163,163,163,255"/>
+              <prop k="line_color" v="96,96,96,255"/>
               <prop k="line_style" v="solid"/>
               <prop k="line_width" v="0.26"/>
               <prop k="line_width_unit" v="MM"/>
@@ -36914,6 +36937,7 @@ def my_form_open(dialog, layer, feature):
       </renderer-v2>
       <labeling type="simple"/>
       <customproperties>
+        <property key="embeddedWidgets/count" value="0"/>
         <property key="labeling" value="pal"/>
         <property key="labeling/addDirectionSymbol" value="false"/>
         <property key="labeling/angleOffset" value="0"/>
@@ -37140,6 +37164,7 @@ def my_form_open(dialog, layer, feature):
           <column width="-1" hidden="0" type="field" name="geometri_s"/>
           <column width="-1" hidden="0" type="field" name="objekt_sta"/>
           <column width="-1" hidden="0" type="field" name="synlig_vej"/>
+          <column width="-1" hidden="0" type="field" name="id"/>
         </columns>
       </attributetableconfig>
       <editform>Produktion/By_Land/sular/Q-gis</editform>
@@ -37449,11 +37474,11 @@ def my_form_open(dialog, layer, feature):
       <SelectionColorGreenPart type="int">255</SelectionColorGreenPart>
       <CanvasColorBluePart type="int">255</CanvasColorBluePart>
     </Gui>
+    <WFSLayers type="QStringList"/>
+    <WMSServiceAbstract type="QString"></WMSServiceAbstract>
     <Measure>
       <Ellipsoid type="QString">NONE</Ellipsoid>
     </Measure>
-    <WMSServiceAbstract type="QString"></WMSServiceAbstract>
-    <WFSLayers type="QStringList"/>
     <WFSUrl type="QString"></WFSUrl>
     <WMSServiceCapabilities type="bool">false</WMSServiceCapabilities>
     <WMSUseLayerIDs type="bool">false</WMSUseLayerIDs>
