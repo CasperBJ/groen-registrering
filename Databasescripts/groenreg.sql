@@ -1,5 +1,3 @@
-DROP SCHEMA IF EXISTS greg CASCADE;
-
 ---
 --- SET
 ---
