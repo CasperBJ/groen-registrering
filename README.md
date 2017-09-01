@@ -1,18 +1,27 @@
-# Projekt 'Grøn Registrering', Version 2.0
-System til registrering af grønne områder i Frederikssund Kommune.
-
+# Projekt 'Grøn Registrering', Version 2
+System til registrering af grønne områder.
 
 Af Casper Bertelsen, Have- og parkingenigørstuderende
 
+_____________________________________________
 
-Version 1.0:
+PROJEKTET ER UNDER UDVIKLING, MEN DENNE VERSION ER BLEVET TJEKKET MERE ELLER MINDRE SYSTEMATISK IGENNEM FOR FEJL I DATABASCRIPTET.
+GUIDEN HERUNDER ER DOG EN SMULE GAMMEL IFT. PROJEKTET. DETTE VIL BLIVE OPDATERET SAMMEN MED DOKUMENTATION FOR DATABASEN.
+DENNE VERSION ER FOR SÅ VIDT DEN 'FÆRDIGE' VERSION 2 PÅ DEN MÅDE, AT JEG HAR FÅET IMPLEMENTERET ALT DET, SOM UMIDDELBART MANGLEDE.
+_____________________________________________
+
+FOR SPØRGSMÅL OG AFKLARING RETTES HENVENDELSE PÅ casperbj94@gmail.com
+_____________________________________________
+
+
+Version 1:
 Udarbejdet
 - i forbindelse med praktikophold Sept '16 - Jan '17
 - i samarbejde med
 	Frederikssund Kommunes Vej & Park-afdeling
 	Bo Victor Thomsen, Frederikssund Kommunes GIS-afdeling
 
-Version 2.0:
+Version 2:
 Udarbejdet i perioden Jan '17 og frem
 
 

@@ -1,1 +1,0 @@
-Indsæt eget logo.gif, så kommer det automatisk ind i QGIS print composer.
