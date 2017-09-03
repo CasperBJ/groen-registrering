@@ -1,3 +1,17 @@
+--
+-- DROP SCHEMAS AND MISC.
+--
+
+DROP SCHEMA IF EXISTS grunddata CASCADE;
+
+DROP SCHEMA IF EXISTS basis CASCADE;
+
+DROP SCHEMA IF EXISTS greg CASCADE;
+
+DROP SCHEMA IF EXISTS styles CASCADE;
+
+DROP VIEW IF EXISTS public.layer_styles;
+
 ---
 --- SET
 ---
@@ -359,7 +373,7 @@ $$
 			SELECT
 				*
 			FROM tgf_insert
-			
+
 			UNION ALL
 
 			SELECT
@@ -1035,7 +1049,7 @@ $$
 	SELECT
 		*
 	FROM tgo_insert
-	
+
 	UNION ALL
 
 	SELECT
@@ -1130,7 +1144,7 @@ $$
 		time_var AS ( -- 'Time of day'-variable
 			SELECT ($3 || '-' || $2 || '-' || $1 || ' ' || (SELECT text_ FROM greg.variabel('his_time_var')))::timestamp with time zone AS column
 		),
-		
+
 		pris_reg AS ( -- The factor for regulating prices on the given day
 			SELECT * FROM basis.f_prisregulering_produkt($1, $2, $3)
 		)
@@ -1151,11 +1165,7 @@ $$
 		a.geometri,
 		-- FKG #1
 		a.cvr_kode,
-		CASE
-			WHEN am.kommunekode IS NOT NULL
-			THEN am.cvr_navn || ' (' || am.kommunekode || ')'
-			ELSE am.cvr_navn
-		END AS cvr_navn,
+		am.cvr_navn,
 		a.oprindkode,
 		o.oprindelse,
 		a.statuskode,
@@ -1209,7 +1219,7 @@ $$
 		(public.ST_Area(a.geometri) * ue.enhedspris_poly * (SELECT * FROM pris_reg))::numeric(10,1) AS element_pris,
 		-- Active
 		CASE 
-			WHEN a.arbejdssted IS NOT NULL	
+			WHEN a.arbejdssted IS NOT NULL
 			THEN om.aktiv
 			ELSE TRUE
 		END AS aktiv
@@ -1308,7 +1318,7 @@ $$
 		time_var AS ( -- 'Time of day'-variable
 			SELECT ($3 || '-' || $2 || '-' || $1 || ' ' || (SELECT text_ FROM greg.variabel('his_time_var')))::timestamp with time zone AS column
 		),
-		
+
 		pris_reg AS ( -- The factor for regulating prices on the given day
 			SELECT * FROM basis.f_prisregulering_produkt($1, $2, $3)
 		)
@@ -1329,11 +1339,7 @@ $$
 		a.geometri,
 		-- FKG #1
 		a.cvr_kode,
-		CASE
-			WHEN am.kommunekode IS NOT NULL
-			THEN am.cvr_navn || ' (' || am.kommunekode || ')'
-			ELSE am.cvr_navn
-		END AS cvr_navn,
+		am.cvr_navn,
 		a.oprindkode,
 		o.oprindelse,
 		a.statuskode,
@@ -1386,7 +1392,7 @@ $$
 		(public.ST_Length(a.geometri) * ue.enhedspris_line * (SELECT * FROM pris_reg))::numeric(10,1) AS element_pris,
 		-- Active
 		CASE 
-			WHEN a.arbejdssted IS NOT NULL	
+			WHEN a.arbejdssted IS NOT NULL
 			THEN om.aktiv
 			ELSE TRUE
 		END AS aktiv
@@ -1489,7 +1495,7 @@ $$
 		time_var AS ( -- 'Time of day'-variable
 			SELECT ($3 || '-' || $2 || '-' || $1 || ' ' || (SELECT text_ FROM greg.variabel('his_time_var')))::timestamp with time zone AS column
 		),
-		
+
 		pris_reg AS ( -- The factor for regulating prices on the given day
 			SELECT * FROM basis.f_prisregulering_produkt($1, $2, $3)
 		)
@@ -1510,11 +1516,7 @@ $$
 		a.geometri,
 		-- FKG #1
 		a.cvr_kode,
-		CASE
-			WHEN am.kommunekode IS NOT NULL
-			THEN am.cvr_navn || ' (' || am.kommunekode || ')'
-			ELSE am.cvr_navn
-		END AS cvr_navn,
+		am.cvr_navn,
 		a.oprindkode,
 		o.oprindelse,
 		a.statuskode,
@@ -1575,7 +1577,7 @@ $$
 		(public.ST_NumGeometries(a.geometri) * ue.enhedspris_point * (SELECT * FROM pris_reg))::numeric(10,1) AS element_pris,
 		-- Active
 		CASE 
-			WHEN a.arbejdssted IS NOT NULL	
+			WHEN a.arbejdssted IS NOT NULL
 			THEN om.aktiv
 			ELSE TRUE
 		END AS aktiv
@@ -1599,7 +1601,7 @@ $$
 	LEFT JOIN basis.e_basis_elementer e ON ue.element_kode = e.element_kode
 	LEFT JOIN basis.e_basis_hovedelementer he ON e.hovedelement_kode = he.hovedelement_kode
 	-- For speciel_sql = 'REN'
-	LEFT JOIN (SELECT	
+	LEFT JOIN (SELECT
 					arbejdssted,
 					SUM(public.ST_Area(a.geometri)) AS areal
 				FROM greg.f_dato_flader($1, $2, $3) a
@@ -1729,6 +1731,284 @@ $$
 $$;
 
 COMMENT ON FUNCTION greg.f_dato_omraader(dag integer, maaned integer, aar integer) IS 'Funktion til simulering af registreringen på en bestemt dato. Format: dd-MM-yyyy.';
+
+-- f_maengder(dag integer, maaned integer, aar integer)
+
+DROP FUNCTION IF EXISTS greg.f_maengder(dag integer, maaned integer, aar integer);
+
+CREATE FUNCTION greg.f_maengder(dag integer, maaned integer, aar integer)
+	RETURNS TABLE(
+		udtraeksdato text,
+		pg_distrikt_type text,
+		udfoerer text,
+		arbejdssted integer,
+		omraade text,
+		hovedelement_kode text,
+		hovedelement text,
+		element_kode text,
+		element text,
+		underelement_kode text,
+		underelement text,
+		antal bigint,
+		laengde numeric(10,1),
+		areal numeric(10,1),
+		speciel numeric(10,1),
+		pris numeric(10,2)
+	)
+	LANGUAGE sql AS
+$$
+
+	WITH
+
+		time_var AS (
+			SELECT ($3 || '-' || $2 || '-' || $1 || ' ' || (SELECT text_ FROM greg.variabel('his_time_var')))::timestamp with time zone AS column -- 'Time of day'-variable
+		),
+
+		pris_reg AS (
+			SELECT * FROM basis.f_prisregulering_produkt($1, $2, $3)
+		),
+
+		--
+		-- Element list
+		--
+
+		base_elements AS ( -- Select a complete (DISTINCT) list of all current elements within each area code from the current data set
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode
+			FROM greg.f_dato_flader($1, $2, $3) a
+
+			UNION
+
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode
+			FROM greg.f_dato_linier($1, $2, $3) a
+
+			UNION
+
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode
+			FROM greg.f_dato_punkter($1, $2, $3) a
+		),
+
+		--
+		-- Basic calculations
+		--
+
+		base_poly AS ( -- Select the area for each element on each area code from the current data set
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode,
+				SUM(ST_Area(a.geometri)) AS areal
+			FROM greg.f_dato_flader($1, $2, $3) a
+			GROUP BY a.arbejdssted, a.underelement_kode
+		),
+
+		base_line AS ( -- Select the length for each element on each area code from the current data set
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode,
+				SUM(ST_Length(a.geometri)) AS laengde
+			FROM greg.f_dato_linier($1, $2, $3) a
+			GROUP BY a.arbejdssted, a.underelement_kode
+		),
+
+		base_point AS ( -- Select the points (MultiPoints are counted for each individual point) for each element on each area code from the current data set
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode,
+				SUM(ST_NumGeometries(a.geometri)) AS antal
+			FROM greg.f_dato_punkter($1, $2, $3) a
+			GROUP BY a.arbejdssted, a.underelement_kode
+		),
+
+		--
+		-- Special calculation
+		--
+
+		spec_ren AS	( -- Select the area for each area code excluding elements where renhold is set to false from the current data set
+			SELECT
+				a.arbejdssted,
+				SUM(ST_Area(a.geometri)) AS areal -- Relevant for speciel_sql = 'REN'
+			FROM greg.f_dato_flader($1, $2, $3) a
+			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
+			WHERE ue.renhold IS TRUE
+			GROUP BY arbejdssted
+		),
+
+		spec_poly AS ( -- Select all special calculations for each element on each area code from the current data set
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode,
+				(SELECT speciel FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_flader', a.versions_id)) AS speciel
+			FROM greg.f_dato_flader($1, $2, $3) a
+			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
+			WHERE ue.speciel_sql IS NOT NULL
+		),
+
+		spec_line AS ( -- Select all special calculations for each element on each area code from the current data set
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode,
+				(SELECT speciel FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_linier', a.versions_id)) AS speciel
+			FROM greg.f_dato_linier($1, $2, $3) a
+			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
+			WHERE ue.speciel_sql IS NOT NULL
+		),
+
+		spec_point AS ( -- Select all special calculations for each element on each area code from the current data set
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode,
+				CASE
+					WHEN ue.speciel_sql = 'REN'
+					THEN b.areal
+					ELSE (SELECT speciel FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_punkter', a.versions_id))
+				END AS speciel
+			FROM greg.f_dato_punkter($1, $2, $3) a
+			LEFT JOIN spec_ren b ON a.arbejdssted = b.arbejdssted
+			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
+			WHERE ue.speciel_sql IS NOT NULL
+		),
+
+		spec_one AS ( -- Select the sum of each special calculation grouped by each element and area code from the three queries above
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode,
+				SUM(a.speciel) AS speciel
+			FROM (
+				SELECT * FROM spec_poly
+				UNION ALL
+				SELECT * FROM spec_line
+				UNION ALL
+				SELECT * FROM spec_point
+			) a
+			GROUP BY a.arbejdssted, a.underelement_kode
+		),
+
+		--
+		-- Building the view
+		--
+
+		view_1 AS ( -- Select amounts of each feature type respectively for each element within each area code
+			SELECT
+				a.*,
+				CASE
+					WHEN ue.udregn_geometri IS TRUE
+					THEN d.antal
+					ELSE NULL
+				END AS antal,
+				CASE
+					WHEN ue.udregn_geometri IS TRUE
+					THEN c.laengde
+					ELSE NULL
+				END AS laengde,
+				CASE
+					WHEN ue.udregn_geometri IS TRUE
+					THEN b.areal
+					ELSE NULL
+				END AS areal,
+				e.speciel
+			FROM base_elements a
+			LEFT JOIN base_poly		b ON CASE
+											WHEN a.arbejdssted IS NOT NULL
+											THEN a.arbejdssted = b.arbejdssted AND a.underelement_kode = b.underelement_kode
+											ELSE b.arbejdssted IS NULL AND a.underelement_kode = b.underelement_kode
+										END
+			LEFT JOIN base_line		c ON CASE
+											WHEN a.arbejdssted IS NOT NULL
+											THEN a.arbejdssted = c.arbejdssted AND a.underelement_kode = c.underelement_kode
+											ELSE c.arbejdssted IS NULL AND a.underelement_kode = c.underelement_kode
+										END
+			LEFT JOIN base_point	d ON CASE
+											WHEN a.arbejdssted IS NOT NULL
+											THEN a.arbejdssted = d.arbejdssted AND a.underelement_kode = d.underelement_kode
+											ELSE d.arbejdssted IS NULL AND a.underelement_kode = d.underelement_kode
+										END
+			LEFT JOIN spec_one		e ON CASE
+											WHEN a.arbejdssted IS NOT NULL
+											THEN a.arbejdssted = e.arbejdssted AND a.underelement_kode = e.underelement_kode
+											ELSE e.arbejdssted IS NULL AND a.underelement_kode = e.underelement_kode
+										END
+			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
+		),
+
+		view_2 AS ( -- Select full overview of all amounts including a total price for each element on each area code 
+			SELECT
+				a.arbejdssted,
+				a.underelement_kode,
+				a.antal,
+				a.laengde,
+				a.areal,
+				a.speciel,
+				CASE
+					WHEN a.antal IS NOT NULL
+					THEN (a.antal * ue.enhedspris_point * (SELECT * FROM pris_reg))::numeric(10,2)
+					ELSE 0
+				END +
+				CASE
+					WHEN a.laengde IS NOT NULL
+					THEN (a.laengde * ue.enhedspris_line * (SELECT * FROM pris_reg))::numeric(10,2)
+					ELSE 0
+				END +
+				CASE
+					WHEN a.areal IS NOT NULL
+					THEN (a.areal * ue.enhedspris_poly * (SELECT * FROM pris_reg))::numeric(10,2)
+					ELSE 0
+				END +
+				CASE
+					WHEN a.speciel IS NOT NULL
+					THEN (a.speciel * ue.enhedspris_speciel * (SELECT * FROM pris_reg))::numeric(10,2)
+					ELSE 0
+				END AS pris
+			FROM view_1 a
+			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
+		)
+
+	-- SELECT full overview with JOINS to look-up TABLES. Price is set to NULL if 0 for Excel purposes
+	SELECT
+		RIGHT('0' || $1, 2) || '-' || RIGHT('0' || $2, 2) || '-' || $3 AS udtraeksdato,
+		dt.pg_distrikt_type,
+		u.udfoerer,
+		a.arbejdssted,
+		CASE 
+			WHEN a.arbejdssted IS NOT NULL
+			THEN a.arbejdssted || ' ' || om.pg_distrikt_tekst
+			ELSE 'Udenfor område'
+		END AS omraade,
+		he.hovedelement_kode,
+		he.hovedelement_kode || ' - ' || he.hovedelement_tekst AS hovedelement,
+		e.element_kode,
+		e.element_kode || ' ' || e.element_tekst AS element,
+		ue.underelement_kode,
+		CASE
+			WHEN ue.speciel_forklaring IS NOT NULL
+			THEN ue.underelement_kode || ' ' || ue.underelement_tekst || ' (Speciel: ' || ue.speciel_forklaring || ')'
+			ELSE ue.underelement_kode || ' ' || ue.underelement_tekst
+			END AS underelement,
+		a.antal,
+		a.laengde::numeric(10,1),
+		a.areal::numeric(10,1),
+		a.speciel::numeric(10,1),
+		CASE
+			WHEN a.pris > 0
+			THEN a.pris
+		END AS pris
+	FROM view_2 a
+	LEFT JOIN (SELECT * FROM greg.f_dato_omraader($1, $2, $3)) om ON a.arbejdssted = om.pg_distrikt_nr
+	LEFT JOIN basis.d_basis_distrikt_type dt ON om.pg_distrikt_type_kode = dt.pg_distrikt_type_kode
+	LEFT JOIN basis.d_basis_udfoerer u ON om.udfoerer_kode = u.udfoerer_kode
+	LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
+	LEFT JOIN basis.e_basis_elementer e ON ue.element_kode = e.element_kode
+	LEFT JOIN basis.e_basis_hovedelementer he ON e.hovedelement_kode = he.hovedelement_kode
+	WHERE om.aktiv IS TRUE OR a.arbejdssted IS NULL
+	ORDER BY pg_distrikt_nr, underelement_kode;
+
+$$;
+
+COMMENT ON FUNCTION greg.f_maengder(dag integer, maaned integer, aar integer) IS 'Funktion til simulering af mængdeoversigt på en bestemt dato. Format: dd-MM-yyyy.';
 
 -- f_tot_flader(dage integer)
 
@@ -2032,9 +2312,9 @@ $$
 	SELECT
 		*
 	FROM tgo
-	
+
 	UNION ALL
-	
+
 	SELECT
 		*
 	FROM tgho
@@ -2043,284 +2323,6 @@ $$
 $$;
 
 COMMENT ON FUNCTION greg.f_tot_omraader(dage integer) IS 'Ændringsoversigt med tilhørende geometri. Defineres indenfor x antal dage.';
-
--- f_maengder(dag integer, maaned integer, aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_maengder(dag integer, maaned integer, aar integer);
-
-CREATE FUNCTION greg.f_maengder(dag integer, maaned integer, aar integer)
-	RETURNS TABLE(
-		udtraeksdato text,
-		pg_distrikt_type text,
-		udfoerer text,
-		arbejdssted integer,
-		omraade text,
-		hovedelement_kode text,
-		hovedelement text,
-		element_kode text,
-		element text,
-		underelement_kode text,
-		underelement text,
-		antal bigint,
-		laengde numeric(10,1),
-		areal numeric(10,1),
-		speciel numeric(10,1),
-		pris numeric(10,2)
-	)
-	LANGUAGE sql AS
-$$
-
-	WITH
-
-		time_var AS (
-			SELECT ($3 || '-' || $2 || '-' || $1 || ' ' || (SELECT text_ FROM greg.variabel('his_time_var')))::timestamp with time zone AS column -- 'Time of day'-variable
-		),
-
-		pris_reg AS (
-			SELECT * FROM basis.f_prisregulering_produkt($1, $2, $3)
-		),
-
-		--
-		-- Element list
-		--
-
-		base_elements AS ( -- Select a complete (DISTINCT) list of all current elements within each area code from the current data set
-			SELECT
-				a.arbejdssted,
-				a.underelement_kode
-			FROM greg.f_dato_flader($1, $2, $3) a
-		
-			UNION
-		
-			SELECT
-				a.arbejdssted,
-				a.underelement_kode
-			FROM greg.f_dato_linier($1, $2, $3) a
-		
-			UNION
-		
-			SELECT
-				a.arbejdssted,
-				a.underelement_kode
-			FROM greg.f_dato_punkter($1, $2, $3) a
-		),
-
-		--
-		-- Basic calculations
-		--
-
-		base_poly AS ( -- Select the area for each element on each area code from the current data set
-			SELECT
-				a.arbejdssted,
-				a.underelement_kode,
-				SUM(ST_Area(a.geometri)) AS areal
-			FROM greg.f_dato_flader($1, $2, $3) a
-			GROUP BY a.arbejdssted, a.underelement_kode
-		),
-
-		base_line AS ( -- Select the length for each element on each area code from the current data set
-			SELECT
-				a.arbejdssted,
-				a.underelement_kode,
-				SUM(ST_Length(a.geometri)) AS laengde
-			FROM greg.f_dato_linier($1, $2, $3) a
-			GROUP BY a.arbejdssted, a.underelement_kode
-		),
-
-		base_point AS ( -- Select the points (MultiPoints are counted for each individual point) for each element on each area code from the current data set
-			SELECT
-				a.arbejdssted,
-				a.underelement_kode,
-				SUM(ST_NumGeometries(a.geometri)) AS antal
-			FROM greg.f_dato_punkter($1, $2, $3) a
-			GROUP BY a.arbejdssted, a.underelement_kode
-		),
-
-		--
-		-- Special calculation
-		--
-
-		spec_ren AS	( -- Select the area for each area code excluding elements where renhold is set to false from the current data set
-			SELECT
-				a.arbejdssted,
-				SUM(ST_Area(a.geometri)) AS areal -- Relevant for speciel_sql = 'REN'
-			FROM greg.f_dato_flader($1, $2, $3) a
-			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-			WHERE ue.renhold IS TRUE
-			GROUP BY arbejdssted
-		),
-
-		spec_poly AS ( -- Select all special calculations for each element on each area code from the current data set
-			SELECT	
-				a.arbejdssted,
-				a.underelement_kode,
-				(SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_flader', a.versions_id)) AS speciel
-			FROM greg.f_dato_flader($1, $2, $3) a
-			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-			WHERE ue.speciel_sql IS NOT NULL
-		),
-
-		spec_line AS ( -- Select all special calculations for each element on each area code from the current data set
-			SELECT	
-				a.arbejdssted,
-				a.underelement_kode,
-				(SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_linier', a.versions_id)) AS speciel
-			FROM greg.f_dato_linier($1, $2, $3) a
-			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-			WHERE ue.speciel_sql IS NOT NULL
-		),
-
-		spec_point AS ( -- Select all special calculations for each element on each area code from the current data set
-			SELECT	
-				a.arbejdssted,
-				a.underelement_kode,
-				CASE
-					WHEN ue.speciel_sql = 'REN'
-					THEN b.areal
-					ELSE (SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_punkter', a.versions_id))
-				END AS speciel
-			FROM greg.f_dato_punkter($1, $2, $3) a
-			LEFT JOIN spec_ren b ON a.arbejdssted = b.arbejdssted
-			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-			WHERE ue.speciel_sql IS NOT NULL
-		),
-
-		spec_one AS ( -- Select the sum of each special calculation grouped by each element and area code from the three queries above
-			SELECT
-				a.arbejdssted,
-				a.underelement_kode,
-				SUM(a.speciel) AS speciel
-			FROM (
-				SELECT * FROM spec_poly
-				UNION ALL
-				SELECT * FROM spec_line
-				UNION ALL
-				SELECT * FROM spec_point
-			) a
-			GROUP BY a.arbejdssted, a.underelement_kode
-		),
-
-		--
-		-- Building the view
-		--
-
-		view_1 AS ( -- Select amounts of each feature type respectively for each element within each area code
-			SELECT
-				a.*,
-				CASE
-					WHEN ue.udregn_geometri IS TRUE
-					THEN d.antal
-					ELSE NULL
-				END AS antal,
-				CASE
-					WHEN ue.udregn_geometri IS TRUE
-					THEN c.laengde
-					ELSE NULL
-				END AS laengde,
-				CASE
-					WHEN ue.udregn_geometri IS TRUE
-					THEN b.areal
-					ELSE NULL
-				END AS areal,
-				e.speciel
-			FROM base_elements a
-			LEFT JOIN base_poly		b ON CASE
-											WHEN a.arbejdssted IS NOT NULL
-											THEN a.arbejdssted = b.arbejdssted AND a.underelement_kode = b.underelement_kode
-											ELSE b.arbejdssted IS NULL AND a.underelement_kode = b.underelement_kode
-										END
-			LEFT JOIN base_line		c ON CASE
-											WHEN a.arbejdssted IS NOT NULL
-											THEN a.arbejdssted = c.arbejdssted AND a.underelement_kode = c.underelement_kode
-											ELSE c.arbejdssted IS NULL AND a.underelement_kode = c.underelement_kode
-										END
-			LEFT JOIN base_point	d ON CASE
-											WHEN a.arbejdssted IS NOT NULL
-											THEN a.arbejdssted = d.arbejdssted AND a.underelement_kode = d.underelement_kode
-											ELSE d.arbejdssted IS NULL AND a.underelement_kode = d.underelement_kode
-										END
-			LEFT JOIN spec_one		e ON CASE
-											WHEN a.arbejdssted IS NOT NULL
-											THEN a.arbejdssted = e.arbejdssted AND a.underelement_kode = e.underelement_kode
-											ELSE e.arbejdssted IS NULL AND a.underelement_kode = e.underelement_kode
-										END
-			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-		),
-
-		view_2 AS ( -- Select full overview of all amounts including a total price for each element on each area code 
-			SELECT
-				a.arbejdssted,
-				a.underelement_kode,
-				a.antal,
-				a.laengde,
-				a.areal,
-				a.speciel,
-				CASE
-					WHEN a.antal IS NOT NULL
-					THEN (a.antal * ue.enhedspris_point * (SELECT * FROM pris_reg))::numeric(10,2)
-					ELSE 0
-				END +
-				CASE
-					WHEN a.laengde IS NOT NULL
-					THEN (a.laengde * ue.enhedspris_line * (SELECT * FROM pris_reg))::numeric(10,2)
-					ELSE 0
-				END +
-				CASE
-					WHEN a.areal IS NOT NULL
-					THEN (a.areal * ue.enhedspris_poly * (SELECT * FROM pris_reg))::numeric(10,2)
-					ELSE 0
-				END +
-				CASE
-					WHEN a.speciel IS NOT NULL
-					THEN (a.speciel * ue.enhedspris_speciel * (SELECT * FROM pris_reg))::numeric(10,2)
-					ELSE 0
-				END AS pris
-			FROM view_1 a
-			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-		)
-
-	-- SELECT full overview with JOINS to look-up TABLES. Price is set to NULL if 0 for Excel purposes
-	SELECT
-		RIGHT('0' || $1, 2) || '-' || RIGHT('0' || $2, 2) || '-' || $3 AS udtraeksdato,
-		dt.pg_distrikt_type,
-		u.udfoerer,
-		a.arbejdssted,
-		CASE 
-			WHEN a.arbejdssted IS NOT NULL
-			THEN a.arbejdssted || ' ' || om.pg_distrikt_tekst
-			ELSE 'Udenfor område'
-		END AS omraade,
-		he.hovedelement_kode,
-		he.hovedelement_kode || ' - ' || he.hovedelement_tekst AS hovedelement,
-		e.element_kode,
-		e.element_kode || ' ' || e.element_tekst AS element,
-		ue.underelement_kode,
-		CASE
-			WHEN ue.speciel_forklaring IS NOT NULL
-			THEN ue.underelement_kode || ' ' || ue.underelement_tekst || ' (Speciel: ' || ue.speciel_forklaring || ')'
-			ELSE ue.underelement_kode || ' ' || ue.underelement_tekst
-			END AS underelement,
-		a.antal,
-		a.laengde::numeric(10,1),
-		a.areal::numeric(10,1),
-		a.speciel::numeric(10,1),
-		CASE
-			WHEN a.pris > 0
-			THEN a.pris
-		END AS pris
-	FROM view_2 a
-	LEFT JOIN (SELECT * FROM greg.f_dato_omraader($1, $2, $3)) om ON a.arbejdssted = om.pg_distrikt_nr
-	LEFT JOIN basis.d_basis_distrikt_type dt ON om.pg_distrikt_type_kode = dt.pg_distrikt_type_kode
-	LEFT JOIN basis.d_basis_udfoerer u ON om.udfoerer_kode = u.udfoerer_kode
-	LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-	LEFT JOIN basis.e_basis_elementer e ON ue.element_kode = e.element_kode
-	LEFT JOIN basis.e_basis_hovedelementer he ON e.hovedelement_kode = he.hovedelement_kode
-	WHERE om.aktiv IS TRUE OR a.arbejdssted IS NULL
-	ORDER BY pg_distrikt_nr, underelement_kode;
-
-$$;
-
-COMMENT ON FUNCTION greg.f_maengder(dag integer, maaned integer, aar integer) IS 'Funktion til simulering af mængdeoversigt på en bestemt dato. Format: dd-MM-yyyy.';
 
 -- spec_calc(sql text, tabel text, versions_id uuid)
 
@@ -2382,7 +2384,7 @@ $$
 				SELECT 
 					NULL::integer,
 					NULL::numeric,
-					'postgres'::text; -- Comma seperated (No spaces)
+					'postgres,cabje'::text; -- Comma seperated (No spaces)
 
 		ELSIF $1 = 'num_days' THEN -- Number of days to register changes
 
@@ -2589,7 +2591,7 @@ $$
 		E'          <prop k="size_unit" v="MM"/>\n'								||
 		E'          <prop k="vertical_anchor_point" v="1"/>\n'					||
 		E'        </layer>\n      </symbol>\n'
-		AS point,		
+		AS point,
 
 		E'      <symbol alpha="1" clip_to_extent="1" type="line" name="0">\n'			||
 		E'        <layer pass="0" class="SimpleLine" locked="0">\n'						||
@@ -2689,36 +2691,6 @@ $$;
 
 COMMENT ON FUNCTION basis.d_basis_bruger_id_trg() IS 'Tjekker tilladelse til at redigere i tabel';
 
--- e_basis_styles_trg()
-
-CREATE FUNCTION basis.e_basis_styles_trg()
-	RETURNS trigger
-	LANGUAGE plpgsql AS
-$$
-
-	BEGIN
-
-		-- Style Manager
-		-- Point
-		NEW.point_color = COALESCE(NEW.point_color, '#000000');
-		NEW.name = COALESCE(NEW.name, 'circle');		
-
-		-- Line
-		NEW.line_color = COALESCE(NEW.line_color, '#000000');
-		NEW.line_style = COALESCE(NEW.line_style, 'solid');
-
-		-- Polygon
-		NEW.poly_color = COALESCE(NEW.poly_color, '#000000');
-		NEW.style = COALESCE(NEW.style, 'solid');
-
-		RETURN NEW;
-
-	END
-
-$$;
-
-COMMENT ON FUNCTION basis.e_basis_styles_trg() IS 'Tilføjer DEAFULT stilarter for e_basis-tabeller.';
-
 -- e_basis_hovedelementer_trg_a_iud()
 
 CREATE FUNCTION basis.e_basis_hovedelementer_trg_a_iud()
@@ -2786,6 +2758,36 @@ $$
 $$;
 
 COMMENT ON FUNCTION basis.e_basis_hovedelementer_trg_trunc() IS '';
+
+-- e_basis_styles_trg()
+
+CREATE FUNCTION basis.e_basis_styles_trg()
+	RETURNS trigger
+	LANGUAGE plpgsql AS
+$$
+
+	BEGIN
+
+		-- Style Manager
+		-- Point
+		NEW.point_color = COALESCE(NEW.point_color, '#000000');
+		NEW.name = COALESCE(NEW.name, 'circle');
+
+		-- Line
+		NEW.line_color = COALESCE(NEW.line_color, '#000000');
+		NEW.line_style = COALESCE(NEW.line_style, 'solid');
+
+		-- Polygon
+		NEW.poly_color = COALESCE(NEW.poly_color, '#000000');
+		NEW.style = COALESCE(NEW.style, 'solid');
+
+		RETURN NEW;
+
+	END
+
+$$;
+
+COMMENT ON FUNCTION basis.e_basis_styles_trg() IS 'Tilføjer DEAFULT stilarter for e_basis-tabeller.';
 
 -- e_basis_underelementer_trg()
 
@@ -2899,7 +2901,7 @@ $$
 						navn = NEW.navn,
 						rolle = NEW.rolle,
 						aktiv = NEW.aktiv
-				WHERE bruger_id = OLD.bruger_id;			
+				WHERE bruger_id = OLD.bruger_id;
 
 				IF NEW.aktiv != OLD.aktiv THEN
 
@@ -3067,9 +3069,9 @@ $$;
 
 COMMENT ON FUNCTION basis.v_basis_kommunal_kontakt_trg() IS 'Muliggør opdatering gennem v_basis_kommunal_kontakt.';
 
--- v_basis_udfoerer_trg()
+-- v_basis_postnr_trg()
 
-CREATE FUNCTION basis.v_basis_udfoerer_trg()
+CREATE FUNCTION basis.v_basis_postnr_trg()
 	RETURNS trigger
 	LANGUAGE plpgsql AS
 $$
@@ -3078,39 +3080,41 @@ $$
 
 		IF (TG_OP = 'DELETE') THEN
 
-			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_udfoerer WHERE udfoerer_kode = OLD.udfoerer_kode) THEN -- Check if record still exists
+			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_postnr WHERE postnr = OLD.postnr) THEN -- Check if record still exists
 
 				RETURN NULL;
 
 			END IF;
 
 			DELETE
-				FROM basis.d_basis_udfoerer
-			WHERE udfoerer_kode = OLD.udfoerer_kode;
+				FROM basis.d_basis_postnr
+			WHERE postnr = OLD.postnr;
 
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'UPDATE') THEN
 
-			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_udfoerer WHERE udfoerer_kode = OLD.udfoerer_kode) THEN -- Check if record still exists
+			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_postnr WHERE postnr = OLD.postnr) THEN -- Check if record still exists
 
 				RETURN NULL;
 
 			END IF;
 
-			UPDATE basis.d_basis_udfoerer
+			UPDATE basis.d_basis_postnr
 				SET
-					udfoerer = NEW.udfoerer,
+					postnr = NEW.postnr,
+					postnr_by = NEW.postnr_by,
 					aktiv = NEW.aktiv
-			WHERE udfoerer_kode = OLD.udfoerer_kode;
+			WHERE postnr = OLD.postnr;
 
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'INSERT') THEN
 
-			INSERT INTO basis.d_basis_udfoerer (udfoerer, aktiv)
+			INSERT INTO basis.d_basis_postnr
 				VALUES (
-					NEW.udfoerer,
+					NEW.postnr,
+					NEW.postnr_by,
 					NEW.aktiv
 			);
 
@@ -3122,11 +3126,11 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION basis.v_basis_udfoerer_trg() IS 'Muliggør opdatering gennem v_basis_udfoerer.';
+COMMENT ON FUNCTION basis.v_basis_postnr_trg() IS 'Muliggør opdatering gennem v_basis_postnr.';
 
--- v_basis_udfoerer_entrep_trg()
+-- v_basis_prisregulering_trg()
 
-CREATE FUNCTION basis.v_basis_udfoerer_entrep_trg()
+CREATE FUNCTION basis.v_basis_prisregulering_trg()
 	RETURNS trigger
 	LANGUAGE plpgsql AS
 $$
@@ -3135,40 +3139,40 @@ $$
 
 		IF (TG_OP = 'DELETE') THEN
 
-			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_udfoerer_entrep WHERE udfoerer_entrep_kode = OLD.udfoerer_entrep_kode) THEN -- Check if record still exists
+			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_prisregulering WHERE dato = OLD.dato) THEN -- Check if record still exists
 
 				RETURN NULL;
 
 			END IF;
 
 			DELETE
-				FROM basis.d_basis_udfoerer_entrep
-			WHERE udfoerer_entrep_kode = OLD.udfoerer_entrep_kode;
+				FROM basis.d_basis_prisregulering
+			WHERE dato = OLD.dato;
 
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'UPDATE') THEN
 
-			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_udfoerer_entrep WHERE udfoerer_entrep_kode = OLD.udfoerer_entrep_kode) THEN -- Check if record still exists
+			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_prisregulering WHERE dato = OLD.dato) THEN -- Check if record still exists
 
 				RETURN NULL;
 
 			END IF;
 
-			UPDATE basis.d_basis_udfoerer_entrep
+			UPDATE basis.d_basis_prisregulering
 				SET
-					udfoerer_entrep = NEW.udfoerer_entrep,
-					aktiv = NEW.aktiv
-			WHERE udfoerer_entrep_kode = OLD.udfoerer_entrep_kode;
+					dato = NEW.dato,
+					aendring_pct = NEW.aendring_pct
+			WHERE dato = OLD.dato;
 
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'INSERT') THEN
 
-			INSERT INTO basis.d_basis_udfoerer_entrep (udfoerer_entrep, aktiv)
+			INSERT INTO basis.d_basis_prisregulering
 				VALUES (
-					NEW.udfoerer_entrep,
-					NEW.aktiv
+					NEW.dato,
+					NEW.aendring_pct
 			);
 
 			RETURN NULL;
@@ -3179,7 +3183,72 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION basis.v_basis_udfoerer_entrep_trg() IS 'Muliggør opdatering gennem v_basis_udfoerer_entrep.';
+COMMENT ON FUNCTION basis.v_basis_prisregulering_trg() IS 'Muliggør opdatering gennem v_basis_prisregulering.';
+
+-- v_basis_vejnavn_trg()
+
+CREATE FUNCTION basis.v_basis_vejnavn_trg()
+	RETURNS trigger
+	LANGUAGE plpgsql AS
+$$
+
+	BEGIN
+
+		IF (TG_OP = 'DELETE') THEN
+
+			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_vejnavn WHERE vejkode = OLD.vejkode) THEN -- Check if record still exists
+
+				RETURN NULL;
+
+			END IF;
+
+			DELETE
+				FROM basis.d_basis_vejnavn
+			WHERE vejkode = OLD.vejkode;
+
+			RETURN NULL;
+
+		ELSIF (TG_OP = 'UPDATE') THEN
+
+			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_vejnavn WHERE vejkode = OLD.vejkode) THEN -- Check if record still exists
+
+				RETURN NULL;
+
+			END IF;
+
+			UPDATE basis.d_basis_vejnavn
+				SET
+					vejkode = NEW.vejkode,
+					vejnavn = NEW.vejnavn,
+					aktiv = NEW.aktiv,
+					cvf_vejkode = NEW.cvf_vejkode,
+					postnr = NEW.postnr,
+					kommunekode = NEW.kommunekode
+			WHERE vejkode = OLD.vejkode;
+
+			RETURN NULL;
+
+		ELSIF (TG_OP = 'INSERT') THEN
+
+			INSERT INTO basis.d_basis_vejnavn
+				VALUES (
+					NEW.vejkode,
+					NEW.vejnavn,
+					NEW.aktiv,
+					NEW.cvf_vejkode,
+					NEW.postnr,
+					NEW.kommunekode
+			);
+
+			RETURN NULL;
+
+		END IF;
+
+	END
+
+$$;
+
+COMMENT ON FUNCTION basis.v_basis_vejnavn_trg() IS 'Muliggør opdatering gennem v_basis_vejnavn.';
 
 -- v_basis_udfoerer_kontakt_trg()
 
@@ -3244,63 +3313,6 @@ $$;
 
 COMMENT ON FUNCTION basis.v_basis_udfoerer_kontakt_trg() IS 'Muliggør opdatering gennem v_basis_udfoerer_kontakt.';
 
--- v_basis_distrikt_type_trg()
-
-CREATE FUNCTION basis.v_basis_distrikt_type_trg()
-	RETURNS trigger
-	LANGUAGE plpgsql AS
-$$
-
-	BEGIN
-
-		IF (TG_OP = 'DELETE') THEN
-
-			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_distrikt_type WHERE pg_distrikt_type_kode = OLD.pg_distrikt_type_kode) THEN -- Check if record still exists
-
-				RETURN NULL;
-
-			END IF;
-
-			DELETE
-				FROM basis.d_basis_distrikt_type
-			WHERE pg_distrikt_type_kode = OLD.pg_distrikt_type_kode;
-
-			RETURN NULL;
-
-		ELSIF (TG_OP = 'UPDATE') THEN
-
-			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_distrikt_type WHERE pg_distrikt_type_kode = OLD.pg_distrikt_type_kode) THEN -- Check if record still exists
-
-				RETURN NULL;
-
-			END IF;
-
-			UPDATE basis.d_basis_distrikt_type
-				SET
-					pg_distrikt_type = NEW.pg_distrikt_type,
-					aktiv = NEW.aktiv
-			WHERE pg_distrikt_type_kode = OLD.pg_distrikt_type_kode;
-
-			RETURN NULL;
-
-		ELSIF (TG_OP = 'INSERT') THEN
-
-			INSERT INTO basis.d_basis_distrikt_type (pg_distrikt_type, aktiv)
-				VALUES (
-					NEW.pg_distrikt_type,
-					NEW.aktiv
-			);
-
-			RETURN NULL;
-
-		END IF;
-
-	END
-
-$$;
-
-COMMENT ON FUNCTION basis.v_basis_distrikt_type_trg() IS 'Muliggør opdatering gennem v_basis_distrikt_type.';
-
 -- v_basis_hovedelementer_trg()
 
 CREATE FUNCTION basis.v_basis_hovedelementer_trg()
@@ -3341,7 +3353,7 @@ $$
 					hovedelement_kode = NEW.hovedelement_kode,
 					hovedelement_tekst = NEW.hovedelement_tekst,
 					aktiv = NEW.aktiv,
-					-- Point	
+					-- Point
 					point_color = NEW.point_color,
 					name = NEW.name,
 					-- Line
@@ -3367,7 +3379,7 @@ $$
 					NEW.hovedelement_kode,
 					NEW.hovedelement_tekst,
 					NEW.aktiv,
-					-- Point	
+					-- Point
 					NEW.point_color,
 					NEW.name,
 					-- Line
@@ -3471,7 +3483,7 @@ $$
 					element_kode = NEW.element_kode,
 					element_tekst = NEW.element_tekst,
 					aktiv = NEW.aktiv,
-					-- Point	
+					-- Point
 					point_color = NEW.point_color,
 					name = NEW.name,
 					-- Line
@@ -3498,7 +3510,7 @@ $$
 					NEW.element_kode,
 					NEW.element_tekst,
 					NEW.aktiv,
-					-- Point	
+					-- Point
 					NEW.point_color,
 					NEW.name,
 					-- Line
@@ -3532,7 +3544,7 @@ $$
 		END IF;
 
 		IF NEW.l_style_copy IS NOT NULL THEN -- Reuse already existing style
-		
+
 			UPDATE styles.d_basis_element_lib a
 				SET l_style = (SELECT
 									b.l_style
@@ -3543,7 +3555,7 @@ $$
 		END IF;
 
 		IF NEW.f_style_copy IS NOT NULL THEN -- Reuse already existing style
-		
+
 			UPDATE styles.d_basis_element_lib a
 				SET f_style = (SELECT
 									b.f_style
@@ -3611,7 +3623,7 @@ $$
 					renhold = NEW.renhold,
 					udregn_geometri = NEW.udregn_geometri,
 					aktiv = NEW.aktiv,
-					-- Point	
+					-- Point
 					point_color = NEW.point_color,
 					name = NEW.name,
 					-- Line
@@ -3647,7 +3659,7 @@ $$
 					NEW.renhold,
 					NEW.udregn_geometri,
 					NEW.aktiv,
-					-- Point	
+					-- Point
 					NEW.point_color,
 					NEW.name,
 					-- Line
@@ -3670,7 +3682,7 @@ $$
 		END IF;
 
 		IF NEW.p_style_copy IS NOT NULL THEN -- Reuse already existing style
-		
+
 			UPDATE styles.d_basis_element_lib a
 				SET p_style = (SELECT
 									b.p_style
@@ -3681,7 +3693,7 @@ $$
 		END IF;
 
 		IF NEW.l_style_copy IS NOT NULL THEN -- Reuse already existing style
-		
+
 			UPDATE styles.d_basis_element_lib a
 				SET l_style = (SELECT
 									b.l_style
@@ -3709,63 +3721,6 @@ $$
 $$;
 
 COMMENT ON FUNCTION basis.v_basis_underelementer_trg() IS 'Muliggør opdatering gennem v_basis_underelementer.';
-
--- v_basis_prisregulering_trg()
-
-CREATE FUNCTION basis.v_basis_prisregulering_trg()
-	RETURNS trigger
-	LANGUAGE plpgsql AS
-$$
-	
-	BEGIN
-
-		IF (TG_OP = 'DELETE') THEN
-
-			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_prisregulering WHERE dato = OLD.dato) THEN -- Check if record still exists
-
-				RETURN NULL;
-
-			END IF;
-
-			DELETE
-				FROM basis.d_basis_prisregulering
-			WHERE dato = OLD.dato;
-
-			RETURN NULL;
-
-		ELSIF (TG_OP = 'UPDATE') THEN
-
-			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_prisregulering WHERE dato = OLD.dato) THEN -- Check if record still exists
-
-				RETURN NULL;
-
-			END IF;
-
-			UPDATE basis.d_basis_prisregulering
-				SET
-					dato = NEW.dato,
-					aendring_pct = NEW.aendring_pct
-			WHERE dato = OLD.dato;
-
-			RETURN NULL;
-
-		ELSIF (TG_OP = 'INSERT') THEN
-
-			INSERT INTO basis.d_basis_prisregulering
-				VALUES (
-					NEW.dato,
-					NEW.aendring_pct
-			);
-
-			RETURN NULL;
-
-		END IF;
-
-	END
-
-$$;
-
-COMMENT ON FUNCTION basis.v_basis_prisregulering_trg() IS 'Muliggør opdatering gennem v_basis_prisregulering.';
 
 -- Trigger functions in schema greg --
 
@@ -3819,15 +3774,15 @@ $$
 			NEW.bruger_id_start = current_user; -- User responsible
 			NEW.bruger_id_slut = NULL; -- Overwrites potential changes from user
 			NEW.geometri = public.ST_Multi(NEW.geometri); -- Force geometry into multigeometry
-			
+
 			IF TG_TABLE_SCHEMA = 'greg' AND TG_TABLE_NAME IN('t_greg_flader', 't_greg_linier', 't_greg_punkter') THEN -- Table specific: t_greg_flader, t_greg_linier, t_greg_punkter
 
 				-- Universal DEFAULT values
-				NEW.cvr_kode = COALESCE(NEW.cvr_kode, 29189129);
-				NEW.oprindkode = COALESCE(NEW.oprindkode, 0);
-				NEW.statuskode = COALESCE(NEW.statuskode, 0);
-				NEW.off_kode = COALESCE(NEW.off_kode, 1);
-				NEW.tilstand_kode = COALESCE(NEW.tilstand_kode,9);
+				NEW.cvr_kode = COALESCE(NEW.cvr_kode, (SELECT int_ FROM greg.variabel('cvr')));
+				NEW.oprindkode = COALESCE(NEW.oprindkode, (SELECT int_ FROM greg.variabel('oprind')));
+				NEW.statuskode = COALESCE(NEW.statuskode, (SELECT int_ FROM greg.variabel('status')));
+				NEW.off_kode = COALESCE(NEW.off_kode, (SELECT int_ FROM greg.variabel('off_')));
+				NEW.tilstand_kode = COALESCE(NEW.tilstand_kode, (SELECT int_ FROM greg.variabel('tilstand')));
 
 			END IF;
 
@@ -3840,6 +3795,28 @@ $$
 $$;
 
 COMMENT ON FUNCTION greg.t_greg_generel_trg() IS 'Generelle informationer ved INSERT/UPDATE/DELETE for at opretholde historik, samt universelle DEFAULT values.';
+
+-- t_greg_historik_trg_a_ud()
+
+CREATE FUNCTION greg.t_greg_historik_trg_a_ud()
+	RETURNS trigger
+	LANGUAGE plpgsql AS
+$$
+
+	BEGIN
+
+		OLD.systid_til = current_timestamp;
+		OLD.bruger_id_slut = current_user;
+		EXECUTE format('INSERT INTO %s SELECT $1.*', TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME)
+		USING OLD;
+
+		RETURN NULL;
+
+	END
+
+$$;
+
+COMMENT ON FUNCTION greg.t_greg_historik_trg_a_ud() IS 'Indsætter den originale feature efter UPDATE / DELETE med påført systid_til.';
 
 -- t_greg_geometri_trg()
 
@@ -3858,9 +3835,9 @@ $$
 	BEGIN
 
 		IF (TG_OP = 'UPDATE') THEN
-		
+
 			IF public.ST_EQUALS(NEW.geometri, OLD.geometri) IS FALSE THEN
-			
+
 				EXECUTE 'SELECT ''1'' FROM ' || TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME || ' WHERE public.ST_Contains(geometri, $1.geometri) IS TRUE AND systid_til IS NULL AND objekt_id != $1.objekt_id'
 				USING NEW
 				INTO boolean_var; -- Geometry check #1: NEW.geometry contained by an existing geometry
@@ -3880,21 +3857,21 @@ $$
 				EXECUTE 'SELECT public.ST_Multi(public.ST_CollectionExtract(public.ST_Difference($1.geometri, (SELECT public.ST_Union(geometri) FROM ' || TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME || ' WHERE (public.ST_Overlaps($1.geometri, geometri) IS TRUE OR public.ST_Within(geometri, $1.geometri) IS TRUE) AND systid_til IS NULL AND objekt_id != $1.objekt_id)), 3))'
 				USING NEW
 				INTO geom_var;
-				
+
 					IF public.ST_Area(geom_var)::numeric(20,6) != public.ST_Area(OLD.geometri)::numeric(20,6) THEN -- Due to QGIS reshape tool
-		
+
 						NEW.geometri = geom_var;
-			
+
 					END IF;
-			
+
 				END IF;
-			
+
 			END IF;
-			
+
 			RETURN NEW;
-	
+
 		ELSIF (TG_OP = 'INSERT') THEN
-	
+
 			IF NEW.systid_til = current_timestamp THEN -- Ignored if triggered via an UPDATE- / DELETE-action (via AFTER-trigger)
 
 				RETURN NEW;
@@ -3924,7 +3901,7 @@ $$
 			END IF;
 			
 			RETURN NEW;
-		
+
 		END IF;
 
 	END;
@@ -3975,7 +3952,7 @@ $$
 			-- Table specific DEFAULT values
 			NEW.hoejde = COALESCE(NEW.hoejde, 0.0);
 			NEW.klip_sider = COALESCE(NEW.klip_sider, 0);
-			
+
 			-- Automated evaluation of arbejdssted to be stored in the table itself
 			NEW.arbejdssted = 	(SELECT
 										b.pg_distrikt_nr
@@ -4039,7 +4016,7 @@ $$
 			-- Table specific DEFAULT values
 			NEW.bredde = COALESCE(NEW.bredde, 0.0);
 			NEW.hoejde = COALESCE(NEW.hoejde, 0.0);
-			
+
 			-- Automated evaluation of arbejdssted to be stored in the table itself
 			NEW.arbejdssted = 	(SELECT
 										b.pg_distrikt_nr
@@ -4123,7 +4100,7 @@ $$
 			NEW.bredde = COALESCE(NEW.bredde, 0.0);
 			NEW.diameter = COALESCE(NEW.diameter, 0.0);
 			NEW.hoejde = COALESCE(NEW.hoejde, 0.0);
-			
+
 			-- Automated evaluation of arbejdssted to be stored in the table itself
 			NEW.arbejdssted = 	(SELECT
 										b.pg_distrikt_nr
@@ -4165,39 +4142,17 @@ $$
 
 	BEGIN
 
-		IF (TG_OP = 'UPDATE') THEN
-
-			IF OLD.pg_distrikt_nr != NEW.pg_distrikt_nr THEN
-
-				INSERT INTO basis.d_basis_omraadenr -- Insertion into FK table (Indirect relation between areas and data). OLD record is deleted in AFTER-trigger.
-					VALUES (
-						NEW.pg_distrikt_nr
-				);
-
-			END IF;
-			
-			RETURN NEW;
-
-		ELSIF (TG_OP = 'INSERT') THEN
-
 			IF NEW.systid_til = current_timestamp THEN -- Ignored if triggered via an UPDATE- / DELETE-action (via AFTER-trigger)
 
 				RETURN NEW;
 
 			END IF;
 
-			INSERT INTO basis.d_basis_omraadenr -- Insertion into FK table (Indirect relation between areas and data)
-				VALUES (
-					NEW.pg_distrikt_nr
-			);
-
 			-- Set DEFAULT table specific values (Updateable views)
 			NEW.aktiv = COALESCE(NEW.aktiv, 't');
 			NEW.synlig = COALESCE(NEW.synlig, 't');
 
 			RETURN NEW;
-
-		END IF;
 
 	END
 
@@ -4274,11 +4229,11 @@ $$
 						THEN TRUE
 					END
 				AND a.systid_til IS NULL;
-			
+
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'UPDATE') THEN
-		
+
 			IF public.ST_EQUALS(NEW.geometri, OLD.geometri) IS FALSE OR OLD.pg_distrikt_nr != NEW.pg_distrikt_nr THEN -- If geometry has been changed
 
 				UPDATE greg.t_greg_flader a -- Update t_greg_flader
@@ -4345,17 +4300,17 @@ $$
 					AND a.systid_til IS NULL;
 
 			END IF;
-			
+
 			RETURN NULL;
-		
+
 		ELSIF (TG_OP = 'INSERT') THEN
-		
+
 			IF NEW.systid_til = current_timestamp THEN -- Ignored if triggered via an UPDATE- / DELETE-action (via AFTER-trigger)
 
 				RETURN NULL;
 
 			END IF;
-			
+
 			UPDATE greg.t_greg_flader a -- Update t_greg_flader
 				SET
 					arbejdssted = (SELECT
@@ -4414,9 +4369,9 @@ $$
 						THEN TRUE
 					END
 				AND a.systid_til IS NULL;
-			
+
 			RETURN NULL;
-			
+
 		END IF;
 
 	END
@@ -4438,11 +4393,7 @@ $$
 
 			DELETE
 				FROM greg.t_greg_delomraader
-			WHERE pg_distrikt_nr = OLD.pg_distrikt_nr;	
-
-			DELETE
-				FROM basis.d_basis_omraadenr
-			WHERE pg_distrikt_nr = OLD.pg_distrikt_nr;		
+			WHERE pg_distrikt_nr = OLD.pg_distrikt_nr;
 
 			RETURN NULL;
 
@@ -4455,10 +4406,6 @@ $$
 						pg_distrikt_nr = NEW.pg_distrikt_nr
 				WHERE pg_distrikt_nr = OLD.pg_distrikt_nr;
 
-				DELETE 
-					FROM basis.d_basis_omraadenr
-				WHERE pg_distrikt_nr = OLD.pg_distrikt_nr;
-
 			END IF;
 
 			RETURN NULL;
@@ -4469,29 +4416,7 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION greg.t_greg_omraader_trg_a_ud() IS 'Opdaterer rådata tabeller, samt delområder ved eventuelle ændringer af områdenumre.';
-
--- t_greg_historik_trg_a_ud()
-
-CREATE FUNCTION greg.t_greg_historik_trg_a_ud()
-	RETURNS trigger
-	LANGUAGE plpgsql AS
-$$
-
-	BEGIN
-
-		OLD.systid_til = current_timestamp;
-		OLD.bruger_id_slut = current_user;
-		EXECUTE format('INSERT INTO %s SELECT $1.*', TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME)
-		USING OLD;
-
-		RETURN NULL;
-
-	END
-
-$$;
-
-COMMENT ON FUNCTION greg.t_greg_historik_trg_a_ud() IS 'Indsætter den originale feature efter UPDATE / DELETE med påført systid_til.';
+COMMENT ON FUNCTION greg.t_greg_omraader_trg_a_ud() IS 'Opdaterer delområder ved eventuelle ændringer af områdenumre.';
 
 -- t_greg_delomraader_trg()
 
@@ -4974,16 +4899,15 @@ $$
 				SET
 					styleqml = (SELECT
 									regexp_replace(regexp_replace(styleqml, '((.|\n)*)</edittypes>\n', substring(NEW.styleqml FROM '((.|\n)*) <renderer-v2')), ' <aliases>((.|\n)*)', substring(NEW.styleqml FROM '</annotationform>\n((.|\n)*)'))
-								FROM styles.layer_styles b WHERE a.stylename = b.stylename AND b.f_table_name = NEW.f_table_name) -- Replace relevant parts of style file with new settings			
+								FROM styles.layer_styles b WHERE a.stylename = b.stylename AND b.f_table_name = NEW.f_table_name) -- Replace relevant parts of style file with new settings
 			WHERE a.stylename IN (SELECT hovedelement_kode FROM basis.e_basis_hovedelementer) AND a.f_table_name = NEW.f_table_name AND a.styleqml IS NOT NULL;
 
 			UPDATE styles.layer_styles a -- For ATLAS
 				SET
 					styleqml = (SELECT
 									regexp_replace(regexp_replace(styleqml, ' <edittypes>((.|\n)*)</edittypes>\n', ' <edittypes>' || substring(NEW.styleqml FROM ' <edittypes>((.|\n)*) <renderer-v2')), ' <aliases>((.|\n)*)', substring(NEW.styleqml FROM '</annotationform>\n((.|\n)*)'))
-								FROM styles.layer_styles b WHERE a.stylename = b.stylename AND b.f_table_name = NEW.f_table_name) -- Replace relevant parts of style file with new settings			
+								FROM styles.layer_styles b WHERE a.stylename = b.stylename AND b.f_table_name = NEW.f_table_name) -- Replace relevant parts of style file with new settings
 			WHERE a.stylename = 'ATLAS' AND a.f_table_name = NEW.f_table_name AND a.styleqml IS NOT NULL;
-			
 
 		ELSIF NEW.stylename IN (SELECT hovedelement_kode FROM basis.e_basis_hovedelementer) THEN
 
@@ -4996,15 +4920,15 @@ $$
 		END IF;
 
 		IF NEW.stylename IN ('DEFAULT', 'HOVEDELEMENTER', 'ATLAS', 'HISTORIK') OR NEW.stylename IN (SELECT hovedelement_kode FROM basis.e_basis_hovedelementer) THEN
-		
+
 			NEW.description = NEW.stylename;
-		
+
 		END IF;
-		
+
 		IF NEW.stylename IN ('DEFAULT', 'HISTORIK') THEN
-		
+
 			NEW.useasdefault = TRUE;
-		
+
 		END IF;
 
 		-- Set DEFAULT table specific values (Updateable views)
@@ -5020,6 +4944,69 @@ $$
 $$;
 
 COMMENT ON FUNCTION styles.layer_styles_trg() IS 'Administrerer layer_styles.';
+
+-- v_basis_element_lib_trg()
+
+CREATE FUNCTION styles.v_basis_element_lib_trg()
+	RETURNS trigger
+	LANGUAGE plpgsql AS
+$$
+
+	BEGIN
+
+		IF (TG_OP = 'DELETE') THEN
+
+			IF NOT EXISTS (SELECT '1' FROM styles.d_basis_element_lib WHERE niveau = OLD.niveau AND kode = OLD.kode) THEN -- Check if record still exists
+
+				RETURN NULL;
+
+			END IF;
+
+			DELETE
+				FROM styles.d_basis_element_lib
+			WHERE niveau = OLD.niveau AND kode = OLD.kode;
+
+			RETURN NULL;
+
+		ELSIF (TG_OP = 'UPDATE') THEN
+
+			IF NOT EXISTS (SELECT '1' FROM styles.d_basis_element_lib WHERE niveau = OLD.niveau AND kode = OLD.kode) THEN -- Check if record still exists
+
+				RETURN NULL;
+
+			END IF;
+
+			UPDATE styles.d_basis_element_lib
+				SET
+					niveau = NEW.niveau,
+					kode = NEW.kode,
+					p_style = NEW.p_style,
+					l_style = NEW.l_style,
+					f_style = NEW.f_style
+			WHERE niveau = OLD.niveau AND kode = OLD.kode;
+
+			RETURN NULL;
+
+		ELSIF (TG_OP = 'INSERT') THEN
+
+			INSERT INTO styles.d_basis_element_lib
+				VALUES (
+					NEW.niveau,
+					NEW.kode,
+					NEW.p_style,
+					NEW.l_style,
+					NEW.f_style
+			);
+
+			RETURN NULL;
+
+		END IF;
+
+	END
+
+$$;
+
+COMMENT ON FUNCTION styles.v_basis_element_lib_trg() IS 'Muligør opdatering af v_basis_element_lib.';
 
 -- v_layer_styles_trg()
 
@@ -5042,7 +5029,7 @@ $$
 				FROM styles.layer_styles
 			WHERE id = OLD.id AND (stylename NOT IN('DEFAULT', 'HOVEDELEMENTER', 'ATLAS', 'HISTORIK') OR stylename NOT IN(SELECT hovedelement_kode FROM basis.e_basis_hovedelementer));
 
-			RETURN NULL;		
+			RETURN NULL;
 
 		ELSIF (TG_OP = 'UPDATE') THEN
 
@@ -5109,69 +5096,6 @@ $$
 $$;
 
 COMMENT ON FUNCTION styles.v_layer_styles_trg() IS 'Muligør opdatering af public.layer_styles.';
-
--- v_basis_element_lib_trg()
-
-CREATE FUNCTION styles.v_basis_element_lib_trg()
-	RETURNS trigger
-	LANGUAGE plpgsql AS
-$$
-
-	BEGIN
-
-		IF (TG_OP = 'DELETE') THEN
-
-			IF NOT EXISTS (SELECT '1' FROM styles.d_basis_element_lib WHERE niveau = OLD.niveau AND kode = OLD.kode) THEN -- Check if record still exists
-
-				RETURN NULL;
-
-			END IF;
-
-			DELETE
-				FROM styles.d_basis_element_lib
-			WHERE niveau = OLD.niveau AND kode = OLD.kode;
-
-			RETURN NULL;		
-
-		ELSIF (TG_OP = 'UPDATE') THEN
-
-			IF NOT EXISTS (SELECT '1' FROM styles.d_basis_element_lib WHERE niveau = OLD.niveau AND kode = OLD.kode) THEN -- Check if record still exists
-
-				RETURN NULL;
-
-			END IF;
-
-			UPDATE styles.d_basis_element_lib
-				SET
-					niveau = NEW.niveau,
-					kode = NEW.kode,
-					p_style = NEW.p_style,
-					l_style = NEW.l_style,
-					f_style = NEW.f_style
-			WHERE niveau = OLD.niveau AND kode = OLD.kode;
-
-			RETURN NULL;
-
-		ELSIF (TG_OP = 'INSERT') THEN
-
-			INSERT INTO styles.d_basis_element_lib
-				VALUES (
-					NEW.niveau,
-					NEW.kode,
-					NEW.p_style,
-					NEW.l_style,
-					NEW.f_style
-			);
-
-			RETURN NULL;
-
-		END IF;
-
-	END
-
-$$;
-
-COMMENT ON FUNCTION styles.v_basis_element_lib_trg() IS 'Muligør opdatering af v_basis_element_lib.';
 
 --
 -- CREATE TABLES
@@ -5424,6 +5348,17 @@ CREATE TABLE basis.d_basis_bruger_id (
 
 COMMENT ON TABLE basis.d_basis_bruger_id IS 'Opslagstabel, bruger ID for elementet (FKG).';
 
+-- d_basis_distrikt_type
+
+CREATE TABLE basis.d_basis_distrikt_type (
+	pg_distrikt_type_kode serial NOT NULL,
+	pg_distrikt_type character varying(30) NOT NULL,
+	aktiv boolean DEFAULT TRUE NOT NULL,
+	CONSTRAINT d_basis_distrikt_type_pk PRIMARY KEY (pg_distrikt_type_kode) WITH (fillfactor='10')
+);
+
+COMMENT ON TABLE basis.d_basis_distrikt_type IS 'Opslagstabel, områdetyper. Fx grønne områder, skoler mv. (FKG).';
+
 -- d_basis_kommunal_kontakt
 
 CREATE TABLE basis.d_basis_kommunal_kontakt (
@@ -5437,17 +5372,6 @@ CREATE TABLE basis.d_basis_kommunal_kontakt (
 );
 
 COMMENT ON TABLE basis.d_basis_kommunal_kontakt IS 'Opslagstabel, kommunal kontakt for element / område (FKG).';
-
--- d_basis_status
-
-CREATE TABLE basis.d_basis_status (
-	statuskode integer NOT NULL,
-	status character varying(30) NOT NULL,
-	aktiv boolean DEFAULT TRUE NOT NULL,
-	CONSTRAINT d_basis_status_pk PRIMARY KEY (statuskode) WITH (fillfactor='10')
-);
-
-COMMENT ON TABLE basis.d_basis_status IS 'Opslagstabel, gyldighedsstatus (FKG).';
 
 -- d_basis_offentlig
 
@@ -5471,6 +5395,38 @@ CREATE TABLE basis.d_basis_oprindelse (
 );
 
 COMMENT ON TABLE basis.d_basis_oprindelse IS 'Opslagstabel, oprindelse (FKG).';
+
+-- d_basis_postnr
+
+CREATE TABLE basis.d_basis_postnr (
+	postnr integer NOT NULL,
+	postnr_by character varying(128) NOT NULL,
+	aktiv boolean DEFAULT TRUE NOT NULL,
+	CONSTRAINT d_basis_postnr_pk PRIMARY KEY (postnr) WITH (fillfactor='10')
+);
+
+COMMENT ON TABLE basis.d_basis_postnr IS 'Opslagstabel, postdistrikter (FKG).';
+
+-- d_basis_prisregulering
+
+CREATE TABLE basis.d_basis_prisregulering (
+	dato date NOT NULL,
+	aendring_pct numeric(10,2),
+	CONSTRAINT d_basis_prisregulering_pk PRIMARY KEY (dato) WITH (fillfactor='10')
+);
+
+COMMENT ON TABLE basis.d_basis_prisregulering IS 'Prisregulering af grundpriser i basis.e_basis_underelementer.';
+
+-- d_basis_status
+
+CREATE TABLE basis.d_basis_status (
+	statuskode integer NOT NULL,
+	status character varying(30) NOT NULL,
+	aktiv boolean DEFAULT TRUE NOT NULL,
+	CONSTRAINT d_basis_status_pk PRIMARY KEY (statuskode) WITH (fillfactor='10')
+);
+
+COMMENT ON TABLE basis.d_basis_status IS 'Opslagstabel, gyldighedsstatus (FKG).';
 
 -- d_basis_tilstand
 
@@ -5523,17 +5479,6 @@ CREATE TABLE basis.d_basis_udfoerer_kontakt (
 
 COMMENT ON TABLE basis.d_basis_udfoerer_kontakt IS 'Opslagstabel, kontaktinformationer på ansvarlig udførende (FKG).';
 
--- d_basis_postnr
-
-CREATE TABLE basis.d_basis_postnr (
-	postnr integer NOT NULL,
-	postnr_by character varying(128) NOT NULL,
-	aktiv boolean DEFAULT TRUE NOT NULL,
-	CONSTRAINT d_basis_postnr_pk PRIMARY KEY (postnr) WITH (fillfactor='10')
-);
-
-COMMENT ON TABLE basis.d_basis_postnr IS 'Opslagstabel, postdistrikter (FKG).';
-
 -- d_basis_vejnavn
 
 CREATE TABLE basis.d_basis_vejnavn (
@@ -5548,26 +5493,6 @@ CREATE TABLE basis.d_basis_vejnavn (
 );
 
 COMMENT ON TABLE basis.d_basis_vejnavn IS 'Opslagstabel, vejnavne (FKG).';
-
--- d_basis_distrikt_type
-
-CREATE TABLE basis.d_basis_distrikt_type (
-	pg_distrikt_type_kode serial NOT NULL,
-	pg_distrikt_type character varying(30) NOT NULL,
-	aktiv boolean DEFAULT TRUE NOT NULL,
-	CONSTRAINT d_basis_distrikt_type_pk PRIMARY KEY (pg_distrikt_type_kode) WITH (fillfactor='10')
-);
-
-COMMENT ON TABLE basis.d_basis_distrikt_type IS 'Opslagstabel, områdetyper. Fx grønne områder, skoler mv.';
-
--- d_basis_omraadenr
-
-CREATE TABLE basis.d_basis_omraadenr (
-	pg_distrikt_nr integer NOT NULL,
-	CONSTRAINT d_basis_omraadenr_pk PRIMARY KEY (pg_distrikt_nr) WITH (fillfactor='10')
-);
-
-COMMENT ON TABLE basis.d_basis_omraadenr IS 'Indirekte relation mellem t_greg_omraader og hhv. (t_greg) flader, linier og punkter. Ellers er der problemer med merge i QGIS.';
 
 -- e_basis_hovedelementer
 
@@ -5674,16 +5599,6 @@ CREATE TABLE basis.e_basis_underelementer (
 
 COMMENT ON TABLE basis.e_basis_underelementer IS 'Opslagstabel, den helt specifikke elementtype. Fx beton, asfalt mv.';
 
--- d_basis_prisregulering
-
-CREATE TABLE basis.d_basis_prisregulering (
-	dato date NOT NULL,
-	aendring_pct numeric(10,2),
-	CONSTRAINT d_basis_prisregulering_pk PRIMARY KEY (dato) WITH (fillfactor='10')
-);
-
-COMMENT ON TABLE basis.d_basis_prisregulering IS 'Prisregulering af grundpriser i basis.e_basis_underelementer.';
-
 -- Tables in schema greg --
 
 -- t_greg_flader
@@ -5700,15 +5615,15 @@ CREATE TABLE greg.t_greg_flader (
 	-- Geometry
 	geometri public.geometry('MultiPolygon',25832) NOT NULL,
 	-- FKG #1
-	cvr_kode integer NOT NULL, -- DEFAULT value is set in greg.t_greg_default_trg()
-	oprindkode integer DEFAULT 0 NOT NULL,
-	statuskode integer DEFAULT 0 NOT NULL,
-	off_kode integer DEFAULT 1 NOT NULL,
+	cvr_kode integer NOT NULL,
+	oprindkode integer NOT NULL,
+	statuskode integer NOT NULL,
+	off_kode integer NOT NULL,
 	-- FKG #2
 	note character varying(254),
 	link character varying(1024),
 	vejkode integer,
-	tilstand_kode integer DEFAULT 9 NOT NULL,
+	tilstand_kode integer NOT NULL,
 	anlaegsaar date,
 	udfoerer_entrep_kode integer,
 	kommunal_kontakt_kode integer,
@@ -5737,7 +5652,6 @@ CREATE TABLE greg.t_greg_flader (
 	CONSTRAINT t_greg_flader_fk_d_basis_udfoerer_entrep FOREIGN KEY (udfoerer_entrep_kode) REFERENCES basis.d_basis_udfoerer_entrep(udfoerer_entrep_kode) MATCH FULL,
 	CONSTRAINT t_greg_flader_fk_d_basis_kommunal_kontakt FOREIGN KEY (kommunal_kontakt_kode) REFERENCES basis.d_basis_kommunal_kontakt(kommunal_kontakt_kode) MATCH FULL,
 	-- FKG #3
-	-- CONSTRAINT t_greg_flader_fk_d_basis_omraadenr FOREIGN KEY (arbejdssted) REFERENCES basis.d_basis_omraadenr(pg_distrikt_nr) MATCH FULL,
 	CONSTRAINT t_greg_flader_fk_e_basis_underelementer FOREIGN KEY (underelement_kode) REFERENCES basis.e_basis_underelementer(underelement_kode) MATCH FULL,
 	-- Check constraints
 	CONSTRAINT t_greg_flader_ck_geometri CHECK (public.ST_IsValid(geometri) IS TRUE AND public.ST_IsEmpty(geometri) IS FALSE),
@@ -5761,15 +5675,15 @@ CREATE TABLE greg.t_greg_linier (
 	-- Geometry
 	geometri public.geometry('MultiLineString',25832) NOT NULL,
 	-- FKG #1
-	cvr_kode integer NOT NULL, -- DEFAULT value is set in greg.t_greg_default_trg()
-	oprindkode integer DEFAULT 0 NOT NULL,
-	statuskode integer DEFAULT 0 NOT NULL,
-	off_kode integer DEFAULT 1 NOT NULL,
+	cvr_kode integer NOT NULL,
+	oprindkode integer NOT NULL,
+	statuskode integer NOT NULL,
+	off_kode integer NOT NULL,
 	-- FKG #2
 	note character varying(254),
 	link character varying(1024),
 	vejkode integer,
-	tilstand_kode integer DEFAULT 9 NOT NULL,
+	tilstand_kode integer NOT NULL,
 	anlaegsaar date,
 	udfoerer_entrep_kode integer,
 	kommunal_kontakt_kode integer,
@@ -5798,7 +5712,6 @@ CREATE TABLE greg.t_greg_linier (
 	CONSTRAINT t_greg_linier_fk_d_basis_udfoerer_entrep FOREIGN KEY (udfoerer_entrep_kode) REFERENCES basis.d_basis_udfoerer_entrep(udfoerer_entrep_kode) MATCH FULL,
 	CONSTRAINT t_greg_linier_fk_d_basis_kommunal_kontakt FOREIGN KEY (kommunal_kontakt_kode) REFERENCES basis.d_basis_kommunal_kontakt(kommunal_kontakt_kode) MATCH FULL,
 	-- FKG #3
-	-- CONSTRAINT t_greg_linier_fk_d_basis_omraadenr FOREIGN KEY (arbejdssted) REFERENCES basis.d_basis_omraadenr(pg_distrikt_nr) MATCH FULL,
 	CONSTRAINT t_greg_linier_fk_e_basis_underelementer FOREIGN KEY (underelement_kode) REFERENCES basis.e_basis_underelementer(underelement_kode) MATCH FULL,
 	-- Check constraints
 	CONSTRAINT t_greg_linier_ck_valid CHECK (public.ST_IsValid(geometri) IS TRUE),
@@ -5821,15 +5734,15 @@ CREATE TABLE greg.t_greg_punkter (
 	-- Geometry
 	geometri public.geometry('MultiPoint',25832) NOT NULL,
 	-- FKG #1
-	cvr_kode integer NOT NULL, -- DEFAULT value is set in greg.t_greg_default_trg()
-	oprindkode integer DEFAULT 0 NOT NULL,
-	statuskode integer DEFAULT 0 NOT NULL,
-	off_kode integer DEFAULT 1 NOT NULL,
+	cvr_kode integer NOT NULL,
+	oprindkode integer NOT NULL,
+	statuskode integer NOT NULL,
+	off_kode integer NOT NULL,
 	-- FKG #2
 	note character varying(254),
 	link character varying(1024),
 	vejkode integer,
-	tilstand_kode integer DEFAULT 9 NOT NULL,
+	tilstand_kode integer NOT NULL,
 	anlaegsaar date,
 	udfoerer_entrep_kode integer,
 	kommunal_kontakt_kode integer,
@@ -5862,7 +5775,6 @@ CREATE TABLE greg.t_greg_punkter (
 	CONSTRAINT t_greg_punkter_fk_d_basis_udfoerer_entrep FOREIGN KEY (udfoerer_entrep_kode) REFERENCES basis.d_basis_udfoerer_entrep(udfoerer_entrep_kode) MATCH FULL,
 	CONSTRAINT t_greg_punkter_fk_d_basis_kommunal_kontakt FOREIGN KEY (kommunal_kontakt_kode) REFERENCES basis.d_basis_kommunal_kontakt(kommunal_kontakt_kode) MATCH FULL,
 	-- FKG #3
-	-- CONSTRAINT t_greg_punkter_fk_d_basis_omraadenr FOREIGN KEY (arbejdssted) REFERENCES basis.d_basis_omraadenr(pg_distrikt_nr) MATCH FULL,
 	CONSTRAINT t_greg_punkter_fk_e_basis_underelementer FOREIGN KEY (underelement_kode) REFERENCES basis.e_basis_underelementer(underelement_kode) MATCH FULL,
 	-- Check constraints
 	CONSTRAINT t_greg_punkter_ck_maal CHECK ((laengde = 0.00 AND bredde = 0.00 AND diameter >= 0.00) OR (laengde >= 0.00 AND bredde >= 0.00 AND diameter = 0.00)),
@@ -5936,27 +5848,6 @@ COMMENT ON TABLE greg.t_greg_delomraader IS 'Specifikke områdeopdelinger i tilf
 
 -- Tables in schema styles --
 
--- d_tables
-
-CREATE TABLE styles.d_tables (
-	f_table_name text NOT NULL,
-	geometry_type text NOT NULL,
-	CONSTRAINT d_tables_pk PRIMARY KEY (f_table_name) WITH (fillfactor='10')
-);
-
-COMMENT ON TABLE styles.d_tables IS 'Registreringstabellerne er deres geometritype for nem look-up.';
-
--- d_not_categorized
-
-CREATE TABLE styles.d_not_categorized (
-	f_table_name text NOT NULL,
-	style text NOT NULL,
-	CONSTRAINT d_not_categorized_pk PRIMARY KEY (f_table_name) WITH (fillfactor='10')
-	
-);
-
-COMMENT ON TABLE styles.d_not_categorized IS 'Stilart for ''Ikke klassificeret''.';
-
 -- d_basis_element_lib
 
 CREATE TABLE styles.d_basis_element_lib (
@@ -5979,6 +5870,26 @@ CREATE TABLE styles.d_hex_rgb (
 );
 
 COMMENT ON TABLE styles.d_hex_rgb IS 'Konvertering af hexadecimaler til værdier for udregning af RGB-kode.';
+
+-- d_not_categorized
+
+CREATE TABLE styles.d_not_categorized (
+	f_table_name text NOT NULL,
+	style text NOT NULL,
+	CONSTRAINT d_not_categorized_pk PRIMARY KEY (f_table_name) WITH (fillfactor='10')
+);
+
+COMMENT ON TABLE styles.d_not_categorized IS 'Stilart for ''Ikke klassificeret''.';
+
+-- d_tables
+
+CREATE TABLE styles.d_tables (
+	f_table_name text NOT NULL,
+	geometry_type text NOT NULL,
+	CONSTRAINT d_tables_pk PRIMARY KEY (f_table_name) WITH (fillfactor='10')
+);
+
+COMMENT ON TABLE styles.d_tables IS 'Registreringstabellerne er deres geometritype for nem look-up.';
 
 -- layer_styles
 
@@ -6005,24 +5916,7 @@ COMMENT ON TABLE styles.d_hex_rgb IS 'Stilarter til QGIS.';
 -- CREATE VIEWS
 --
 
-
-
--- v_basis_ansvarlig_myndighed
-
-CREATE VIEW basis.v_basis_ansvarlig_myndighed AS
-
-SELECT
-	cvr_kode,
-	cvr_navn,
-	CASE
-		WHEN kommunekode IS NOT NULL
-		THEN cvr_navn || ' (' || kommunekode || ')'
-		ELSE cvr_navn
-	END AS myndighed
-FROM basis.d_basis_ansvarlig_myndighed
-WHERE aktiv IS TRUE;
-
-COMMENT ON VIEW basis.v_basis_ansvarlig_myndighed IS 'Look-up for d_basis_ansvarlig_myndighed.';
+-- Views in schema basis --
 
 -- v_basis_bruger_id
 
@@ -6031,9 +5925,9 @@ CREATE VIEW basis.v_basis_bruger_id AS
 SELECT
 	CASE
 		WHEN CASE
-				WHEN bruger_id != ALL(string_to_array((SELECT text_ FROM greg.variabel('users')), ','))
-				THEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_' || bruger_id
-				ELSE bruger_id
+				WHEN bruger_id = ANY(string_to_array((SELECT text_ FROM greg.variabel('users')), ','))
+				THEN bruger_id
+				ELSE (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_' || bruger_id
 			END = current_user
 		THEN 'Du er logget ind som:'
 		ELSE NULL
@@ -6045,9 +5939,17 @@ SELECT
 	END AS prefix,
 	bruger_id,
 	CASE
-		WHEN bruger_id != ALL(string_to_array((SELECT text_ FROM greg.variabel('users')), ','))
-		THEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_' || bruger_id
-		ELSE bruger_id
+		WHEN bruger_id = ANY(string_to_array((SELECT text_ FROM greg.variabel('users')), ','))
+		THEN CASE
+				WHEN bruger_id IN (SELECT rolname FROM pg_catalog.pg_roles)
+				THEN bruger_id
+				ELSE NULL::text
+			END
+		ELSE CASE
+				WHEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_' || bruger_id IN (SELECT rolname FROM pg_catalog.pg_roles)
+				THEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_' || bruger_id
+				ELSE NULL::text
+			END
 	END AS login,
 	navn,
 	navn || ' (' || bruger_id || ')' AS bruger,
@@ -6073,79 +5975,30 @@ FROM basis.d_basis_kommunal_kontakt;
 
 COMMENT ON VIEW basis.v_basis_kommunal_kontakt IS 'Opdaterbar view. Look-up for d_basis_kommunal_kontakt.';
 
--- v_basis_status
+-- v_basis_postnr
 
-CREATE VIEW basis.v_basis_status AS
-
-SELECT
-	statuskode,
-	status
-FROM basis.d_basis_status
-WHERE aktiv IS TRUE;
-
-COMMENT ON VIEW basis.v_basis_status IS 'Look-up for d_basis_status.';
-
--- v_basis_offentlig
-
-CREATE VIEW basis.v_basis_offentlig AS
+CREATE VIEW basis.v_basis_postnr AS
 
 SELECT
-	off_kode,
-	offentlig
-FROM basis.d_basis_offentlig
-WHERE aktiv IS TRUE;
-
-COMMENT ON VIEW basis.v_basis_offentlig IS 'Look-up for d_basis_offentlig.';
-
--- v_basis_oprindelse
-
-CREATE VIEW basis.v_basis_oprindelse AS
-
-SELECT
-	oprindkode,
-	oprindelse,
-	begrebsdefinition
-FROM basis.d_basis_oprindelse
-WHERE aktiv IS TRUE;
-
-COMMENT ON VIEW basis.v_basis_oprindelse IS 'Look-up for d_basis_oprindelse.';
-
--- v_basis_tilstand
-
-CREATE VIEW basis.v_basis_tilstand AS
-
-SELECT
-	tilstand_kode,
-	tilstand,
-	begrebsdefinition
-FROM basis.d_basis_tilstand
-WHERE aktiv IS TRUE;
-
-COMMENT ON VIEW basis.v_basis_tilstand IS 'Look-up for d_basis_tilstand.';
-
--- v_basis_udfoerer
-
-CREATE VIEW basis.v_basis_udfoerer AS
-
-SELECT
-	udfoerer_kode,
-	udfoerer,
+	postnr,
+	postnr_by,
+	postnr || ' ' || postnr_by AS distrikt,
 	aktiv
-FROM basis.d_basis_udfoerer;
+FROM basis.d_basis_postnr;
 
-COMMENT ON VIEW basis.v_basis_udfoerer IS 'Opdaterbar view. Look-up for d_basis_udfoerer.';
+COMMENT ON VIEW basis.v_basis_postnr IS 'Look-up for d_basis_postnr.';
 
--- v_basis_udfoerer_entrep
+-- v_basis_prisregulering
 
-CREATE VIEW basis.v_basis_udfoerer_entrep AS
+CREATE VIEW basis.v_basis_prisregulering AS
 
 SELECT
-	udfoerer_entrep_kode,
-	udfoerer_entrep,
-	aktiv
-FROM basis.d_basis_udfoerer_entrep;
+	dato,
+	aendring_pct,
+	1 + aendring_pct / 100 AS prisregulering_faktor
+FROM basis.d_basis_prisregulering;
 
-COMMENT ON VIEW basis.v_basis_udfoerer_entrep IS 'Opdaterbar view. Look-up for d_basis_udfoerer_entrep.';
+COMMENT ON VIEW basis.v_basis_prisregulering IS 'Opdaterbar view. Look-up for d_basis_prisregulering.';
 
 -- v_basis_udfoerer_kontakt
 
@@ -6169,38 +6022,34 @@ COMMENT ON VIEW basis.v_basis_udfoerer_kontakt IS 'Opdaterbar view. Look-up for 
 CREATE VIEW basis.v_basis_vejnavn AS
 
 SELECT
-	postnr,
 	vejkode,
 	vejnavn,
-	vejnavn || ' (' || postnr || ')' AS vej
-FROM basis.d_basis_vejnavn
-WHERE aktiv IS TRUE;
+	vejnavn || ' (' || postnr || ')' AS vej,
+	aktiv,
+	cvf_vejkode,
+	postnr,
+	kommunekode
+FROM basis.d_basis_vejnavn;
 
 COMMENT ON VIEW basis.v_basis_vejnavn IS 'Look-up for d_basis_vejnavn.';
 
--- v_basis_distrikt_type
+-- v_default
 
-CREATE VIEW basis.v_basis_distrikt_type AS
+DROP VIEW IF EXISTS basis.v_default;
 
-SELECT
-	pg_distrikt_type_kode,
-	pg_distrikt_type,
-	aktiv
-FROM basis.d_basis_distrikt_type;
-
-COMMENT ON VIEW basis.v_basis_distrikt_type IS 'Opdaterbar view. Look-up for d_basis_distrikt_type.';
-
--- v_basis_postnr
-
-CREATE VIEW basis.v_basis_postnr AS
+CREATE VIEW basis.v_default AS
 
 SELECT
-	postnr,
-	postnr || ' ' || postnr_by as distrikt
-FROM basis.d_basis_postnr
-WHERE aktiv IS TRUE;
+	1 AS int,
+	(SELECT text_ FROM greg.variabel('composer')) AS composer,
+	(SELECT text_ FROM greg.variabel('picture')) AS picture,
+	(SELECT int_ FROM greg.variabel('cvr')) AS cvr,
+	(SELECT int_ FROM greg.variabel('oprind')) AS oprind,
+	(SELECT int_ FROM greg.variabel('status')) AS status,
+	(SELECT int_ FROM greg.variabel('off_')) AS off_,
+	(SELECT int_ FROM greg.variabel('tilstand')) AS tilstand;
 
-COMMENT ON VIEW basis.v_basis_postnr IS 'Look-up for d_basis_postnr.';
+COMMENT ON VIEW basis.v_default IS 'Indeholder diverse indstillinger til QGIS.';
 
 -- v_basis_hovedelementer
 
@@ -6245,7 +6094,7 @@ SELECT
 		ELSE ''
 	END AS objekt_type,
 	a.aktiv,
-	-- Point	
+	-- Point
 	CASE 
 		WHEN a.hovedelement_kode NOT IN(SELECT 
 										hovedelement_kode
@@ -6259,7 +6108,7 @@ SELECT
 	a.point_color,
 	a.name,
 	NULL::text AS p_style_copy,
-	-- Line	
+	-- Line
 	CASE 
 		WHEN a.hovedelement_kode NOT IN(SELECT 
 										hovedelement_kode
@@ -6273,7 +6122,7 @@ SELECT
 	a.line_color,
 	a.line_style,
 	NULL::text AS l_style_copy,
-	-- Polygon	
+	-- Polygon
 	CASE 
 		WHEN a.hovedelement_kode NOT IN(SELECT 
 										hovedelement_kode
@@ -6286,10 +6135,9 @@ SELECT
 	END AS f_style_ow,
 	a.poly_color,
 	a.style,
-	NULL::text AS f_style_copy
+	NULL::text AS f_style_copy,
+	a.aktiv::text AS aktiv_text
 FROM basis.e_basis_hovedelementer a
-LEFT JOIN basis.e_basis_elementer b ON a.hovedelement_kode = b.hovedelement_kode
-LEFT JOIN basis.e_basis_underelementer c ON b.element_kode = c.element_kode
 LEFT JOIN styles.d_basis_element_lib d ON a.hovedelement_kode = d.kode AND d.niveau = 1
 GROUP BY a.hovedelement_kode, a.hovedelement_tekst, p_style, a.point_color, a.name, d.l_style, a.line_color, a.line_style, d.f_style, a.poly_color, a.style
 ORDER BY a.hovedelement_kode;
@@ -6330,7 +6178,7 @@ SELECT
 		ELSE ''
 	END AS objekt_type,
 	a.aktiv,
-	-- Point	
+	-- Point
 	CASE
 		WHEN a.element_kode NOT IN(SELECT
 									element_kode
@@ -6344,7 +6192,7 @@ SELECT
 	a.point_color,
 	a.name,
 	NULL::text AS p_style_copy,
-	-- Line	
+	-- Line
 	CASE
 		WHEN a.element_kode NOT IN(SELECT
 									element_kode
@@ -6358,7 +6206,7 @@ SELECT
 	a.line_color,
 	a.line_style,
 	NULL::text AS l_style_copy,
-	-- Polygon	
+	-- Polygon
 	CASE
 		WHEN a.element_kode NOT IN(SELECT
 									element_kode
@@ -6371,9 +6219,9 @@ SELECT
 	END AS f_style_ow,
 	a.poly_color,
 	a.style,
-	NULL::text AS f_style_copy
+	NULL::text AS f_style_copy,
+	a.aktiv::text AS aktiv_text
 FROM basis.e_basis_elementer a
-LEFT JOIN basis.e_basis_underelementer b ON a.element_kode = b.element_kode
 LEFT JOIN basis.e_basis_hovedelementer c ON a.hovedelement_kode = c.hovedelement_kode
 LEFT JOIN styles.d_basis_element_lib d ON a.element_kode = d.kode AND d.niveau = 2
 WHERE c.aktiv IS TRUE
@@ -6401,7 +6249,7 @@ SELECT
 	a.renhold,
 	a.udregn_geometri,
 	a.aktiv,
-	-- Point	
+	-- Point
 	CASE
 		WHEN a.objekt_type NOT ILIKE '%P%'
 		THEN NULL
@@ -6412,7 +6260,7 @@ SELECT
 	a.point_color,
 	a.name,
 	NULL::text AS p_style_copy,
-	-- Line	
+	-- Line
 	CASE
 		WHEN a.objekt_type NOT ILIKE '%L%'
 		THEN NULL
@@ -6423,7 +6271,7 @@ SELECT
 	a.line_color,
 	a.line_style,
 	NULL::text AS l_style_copy,
-	-- Polygon	
+	-- Polygon
 	CASE
 		WHEN a.objekt_type NOT ILIKE '%F%'
 		THEN NULL
@@ -6433,7 +6281,8 @@ SELECT
 	END AS f_style_ow,
 	a.poly_color,
 	a.style,
-	NULL::text AS f_style_copy
+	NULL::text AS f_style_copy,
+	a.aktiv::text AS aktiv_text
 FROM basis.e_basis_underelementer a
 LEFT JOIN basis.e_basis_elementer b ON a.element_kode = b.element_kode
 LEFT JOIN basis.e_basis_hovedelementer c ON b.hovedelement_kode = c.hovedelement_kode
@@ -6443,37 +6292,130 @@ ORDER BY a.underelement_kode;
 
 COMMENT ON VIEW basis.v_basis_underelementer IS 'Opdaterbar view. Look-up for e_basis_underelementer.';
 
--- v_basis_prisregulering
+-- Views in schema greg --
 
-CREATE VIEW basis.v_basis_prisregulering AS
+-- v_aendring_flader
+
+DROP VIEW IF EXISTS greg.v_aendring_flader;
+
+CREATE VIEW greg.v_aendring_flader AS
 
 SELECT
+	objekt_id,
+	geometri::public.geometry('MultiPolygon', 25832) AS geometri,
+	handling,
 	dato,
-	aendring_pct,
-	1 + aendring_pct / 100 AS prisregulering_faktor
-FROM basis.d_basis_prisregulering;
+	arbejdssted,
+	underelement
+FROM greg.f_tot_flader((SELECT int_ FROM greg.variabel('num_days')));
 
-COMMENT ON VIEW basis.v_basis_prisregulering IS 'Opdaterbar view. Look-up for d_basis_prisregulering.';
+COMMENT ON VIEW greg.v_aendring_flader IS 'Ændringsoversigt med tilhørende geometri.';
 
--- v_default
+-- v_aendring_linier
 
-DROP VIEW IF EXISTS basis.v_default;
+DROP VIEW IF EXISTS greg.v_aendring_linier;
 
-CREATE VIEW basis.v_default AS
+CREATE VIEW greg.v_aendring_linier AS
 
 SELECT
-	1 AS int,
-	(SELECT text_ FROM greg.variabel('composer')) AS composer,
-	(SELECT text_ FROM greg.variabel('picture')) AS picture,
-	(SELECT int_ FROM greg.variabel('cvr')) AS cvr,
-	(SELECT int_ FROM greg.variabel('oprind')) AS oprind,
-	(SELECT int_ FROM greg.variabel('status')) AS status,
-	(SELECT int_ FROM greg.variabel('off_')) AS off_,
-	(SELECT int_ FROM greg.variabel('tilstand')) AS tilstand;
+	objekt_id,
+	geometri::public.geometry('MultiLineString', 25832) AS geometri,
+	handling,
+	dato,
+	arbejdssted,
+	underelement
+FROM greg.f_tot_linier((SELECT int_ FROM greg.variabel('num_days')));
 
-COMMENT ON VIEW basis.v_default IS 'Indeholder diverse indstillinger til QGIS.';
+COMMENT ON VIEW greg.v_aendring_linier IS 'Ændringsoversigt med tilhørende geometri.';
 
+-- v_aendring_punkter
 
+DROP VIEW IF EXISTS greg.v_aendring_punkter;
+
+CREATE VIEW greg.v_aendring_punkter AS
+
+SELECT
+	objekt_id,
+	geometri::public.geometry('MultiPoint', 25832) AS geometri,
+	handling,
+	dato,
+	arbejdssted,
+	underelement
+FROM greg.f_tot_punkter((SELECT int_ FROM greg.variabel('num_days')));
+
+COMMENT ON VIEW greg.v_aendring_punkter IS 'Ændringsoversigt med tilhørende geometri.';
+
+-- v_aendring_omraader
+
+DROP VIEW IF EXISTS greg.v_aendring_omraader;
+
+CREATE VIEW greg.v_aendring_omraader AS
+
+SELECT
+	objekt_id,
+	geometri::public.geometry('MultiPolygon', 25832) AS geometri,
+	handling,
+	dato,
+	arbejdssted
+FROM greg.f_tot_omraader((SELECT int_ FROM greg.variabel('num_days')));
+
+COMMENT ON VIEW greg.v_aendring_omraader IS 'Ændringsoversigt med tilhørende geometri.';
+
+-- v_atlas
+
+CREATE VIEW greg.v_atlas AS
+
+SELECT
+	a.objekt_id,
+	'Område' AS omraadetype,
+	a.pg_distrikt_nr,
+	a.pg_distrikt_tekst,
+	NULL AS delnavn,
+	b.pg_distrikt_type,
+	NULL AS delomraade,
+	NULL AS delomraade_total,
+	c.vejnavn,
+	a.vejnr,
+	a.postnr,
+	d.postnr_by,
+	a.geometri
+FROM greg.t_greg_omraader a
+LEFT JOIN basis.d_basis_distrikt_type b ON a.pg_distrikt_type_kode = b.pg_distrikt_type_kode
+LEFT JOIN basis.d_basis_vejnavn c ON a.vejkode = c.vejkode
+LEFT JOIN basis.d_basis_postnr d ON a.postnr = d.postnr
+WHERE a.systid_til IS NULL AND a.aktiv IS TRUE AND a.pg_distrikt_nr NOT IN (SELECT pg_distrikt_nr FROM greg.t_greg_delomraader) AND a.synlig IS TRUE AND a.geometri IS NOT NULL
+
+UNION
+
+SELECT
+	a.objekt_id,
+	'Delområde' AS omraadetype,
+	a.pg_distrikt_nr,
+	b.pg_distrikt_tekst,
+	a.delnavn,
+	c.pg_distrikt_type,
+	ROW_NUMBER() OVER(PARTITION BY a.pg_distrikt_nr ORDER BY a.delnavn) AS delomraade,
+	f.delomraade_total,
+	d.vejnavn,
+	b.vejnr,
+	b.postnr,
+	e.postnr_by,
+	a.geometri
+FROM greg.t_greg_delomraader a
+LEFT JOIN greg.t_greg_omraader b ON a.pg_distrikt_nr = b.pg_distrikt_nr AND systid_til IS NULL
+LEFT JOIN basis.d_basis_distrikt_type c ON b.pg_distrikt_type_kode = c.pg_distrikt_type_kode
+LEFT JOIN basis.d_basis_vejnavn d ON b.vejkode = d.vejkode
+LEFT JOIN basis.d_basis_postnr e ON b.postnr = e.postnr
+LEFT JOIN (SELECT
+			pg_distrikt_nr,
+				COUNT(pg_distrikt_nr) AS delomraade_total
+			FROM greg.t_greg_delomraader
+			GROUP BY pg_distrikt_nr) f
+		ON a.pg_distrikt_nr = f.pg_distrikt_nr
+WHERE b.aktiv IS TRUE
+ORDER BY pg_distrikt_nr, delomraade;
+
+COMMENT ON VIEW greg.v_atlas IS 'Samlet områdetabel på baggrund af områder og delområder';
 
 -- v_greg_flader
 
@@ -6520,7 +6462,7 @@ SELECT
 	a.arbejdssted,
 	CASE 
 		WHEN a.arbejdssted IS NOT NULL
-		THEN om.pg_distrikt_tekst
+		THEN a.arbejdssted || ' ' || om.pg_distrikt_tekst
 		ELSE 'Udenfor område'
 	END AS pg_distrikt_tekst,
 	he.hovedelement_kode,
@@ -6551,7 +6493,7 @@ SELECT
 	(public.ST_Area(a.geometri) * ue.enhedspris_poly * (SELECT * FROM pris_reg))::numeric(10,1) AS element_pris,
 	-- Active
 	CASE 
-		WHEN a.arbejdssted IS NOT NULL	
+		WHEN a.arbejdssted IS NOT NULL
 		THEN om.aktiv
 		ELSE TRUE
 	END AS aktiv
@@ -6622,7 +6564,7 @@ SELECT
 	a.arbejdssted,
 	CASE 
 		WHEN a.arbejdssted IS NOT NULL
-		THEN om.pg_distrikt_tekst
+		THEN a.arbejdssted || ' ' || om.pg_distrikt_tekst
 		ELSE 'Udenfor område'
 	END AS pg_distrikt_tekst,
 	he.hovedelement_kode,
@@ -6643,7 +6585,7 @@ SELECT
 		THEN (SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_linier', a.versions_id))
 		ELSE NULL
 	END AS speciel,
-	public.ST_Length(a.geometri)::numeric(10,1) AS laengde,	
+	public.ST_Length(a.geometri)::numeric(10,1) AS laengde,
 	CASE
 		WHEN ue.speciel_sql IS NOT NULL
 		THEN ((SELECT speciel FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_linier', a.versions_id)) * ue.enhedspris_speciel * (SELECT * FROM pris_reg))::numeric(10,2)
@@ -6652,7 +6594,7 @@ SELECT
 	(public.ST_Length(a.geometri) * ue.enhedspris_line * (SELECT * FROM pris_reg))::numeric(10,1) AS element_pris,
 	-- Active
 	CASE 
-		WHEN a.arbejdssted IS NOT NULL	
+		WHEN a.arbejdssted IS NOT NULL
 		THEN om.aktiv
 		ELSE TRUE
 	END AS aktiv
@@ -6723,7 +6665,7 @@ SELECT
 	a.arbejdssted,
 	CASE 
 		WHEN a.arbejdssted IS NOT NULL
-		THEN om.pg_distrikt_tekst
+		THEN a.arbejdssted || ' ' || om.pg_distrikt_tekst
 		ELSE 'Udenfor område'
 	END AS pg_distrikt_tekst,
 	he.hovedelement_kode,
@@ -6761,7 +6703,7 @@ SELECT
 	(public.ST_NumGeometries(a.geometri) * ue.enhedspris_point * (SELECT * FROM pris_reg))::numeric(10,2) AS element_pris,
 	-- Active
 	CASE 
-		WHEN a.arbejdssted IS NOT NULL	
+		WHEN a.arbejdssted IS NOT NULL
 		THEN om.aktiv
 		ELSE TRUE
 	END AS aktiv
@@ -6854,103 +6796,6 @@ ORDER BY a.pg_distrikt_nr;
 
 COMMENT ON VIEW greg.v_greg_omraader IS 'Opdatérbar view for greg.t_greg_omraader.';
 
-
-
--- v_aendring_flader
-
-DROP VIEW IF EXISTS greg.v_aendring_flader;
-
-CREATE VIEW greg.v_aendring_flader AS
-
-SELECT
-	objekt_id,
-	geometri::public.geometry('MultiPolygon', 25832) AS geometri,
-	handling,
-	dato,
-	arbejdssted,
-	underelement
-FROM greg.f_tot_flader((SELECT int_ FROM greg.variabel('num_days')));
-
-COMMENT ON VIEW greg.v_aendring_flader IS 'Ændringsoversigt med tilhørende geometri.';
-
--- v_aendring_linier
-
-DROP VIEW IF EXISTS greg.v_aendring_linier;
-
-CREATE VIEW greg.v_aendring_linier AS
-
-SELECT
-	objekt_id,
-	geometri::public.geometry('MultiLineString', 25832) AS geometri,
-	handling,
-	dato,
-	arbejdssted,
-	underelement
-FROM greg.f_tot_linier((SELECT int_ FROM greg.variabel('num_days')));
-
-COMMENT ON VIEW greg.v_aendring_linier IS 'Ændringsoversigt med tilhørende geometri.';
-
--- v_aendring_punkter
-
-DROP VIEW IF EXISTS greg.v_aendring_punkter;
-
-CREATE VIEW greg.v_aendring_punkter AS
-
-SELECT
-	objekt_id,
-	geometri::public.geometry('MultiPoint', 25832) AS geometri,
-	handling,
-	dato,
-	arbejdssted,
-	underelement
-FROM greg.f_tot_punkter((SELECT int_ FROM greg.variabel('num_days')));
-
-COMMENT ON VIEW greg.v_aendring_punkter IS 'Ændringsoversigt med tilhørende geometri.';
-
--- v_aendring_omraader
-
-DROP VIEW IF EXISTS greg.v_aendring_omraader;
-
-CREATE VIEW greg.v_aendring_omraader AS
-
-SELECT
-	objekt_id,
-	geometri::public.geometry('MultiPolygon', 25832) AS geometri,
-	handling,
-	dato,
-	arbejdssted
-FROM greg.f_tot_omraader((SELECT int_ FROM greg.variabel('num_days')));
-
-COMMENT ON VIEW greg.v_aendring_omraader IS 'Ændringsoversigt med tilhørende geometri.';
-
-
-
--- v_log
-
-DROP VIEW IF EXISTS greg.v_log;
-
-CREATE VIEW greg.v_log AS
-
-SELECT 	
-	*
-FROM greg.f_aendring_log (EXTRACT (YEAR FROM current_date)::integer);
-
-COMMENT ON VIEW greg.v_log IS 'Ændringslog, som registrerer alle handlinger indenfor et gældende år. Benyttes i Ændringslog.xlsx';
-
--- v_log_historik
-
-DROP VIEW IF EXISTS greg.v_log_historik;
-
-CREATE VIEW greg.v_log_historik AS
-
-SELECT 	
-	*
-FROM greg.f_aendring_log (2000);
-
-COMMENT ON VIEW greg.v_log_historik IS 'Ændringslog, som registrerer alle handlinger indenfor et givent år. Benyttes i Historik_Ændringslog.xlsx';
-
-
-
 -- v_greg_flader_historik
 
 DROP VIEW IF EXISTS greg.v_greg_flader_historik;
@@ -7011,7 +6856,29 @@ FROM greg.f_maengder(01, 01, 2000);
 
 COMMENT ON VIEW greg.v_maengder_historik IS 'Simulering af historik. Benyttes i Historik_Mængdeoversigt.xlsx';
 
+-- v_log
 
+DROP VIEW IF EXISTS greg.v_log;
+
+CREATE VIEW greg.v_log AS
+
+SELECT
+	*
+FROM greg.f_aendring_log (EXTRACT (YEAR FROM current_date)::integer);
+
+COMMENT ON VIEW greg.v_log IS 'Ændringslog, som registrerer alle handlinger indenfor et gældende år. Benyttes i Ændringslog.xlsx';
+
+-- v_log_historik
+
+DROP VIEW IF EXISTS greg.v_log_historik;
+
+CREATE VIEW greg.v_log_historik AS
+
+SELECT
+	*
+FROM greg.f_aendring_log (2000);
+
+COMMENT ON VIEW greg.v_log_historik IS 'Ændringslog, som registrerer alle handlinger indenfor et givent år. Benyttes i Historik_Ændringslog.xlsx';
 
 -- v_maengder_omraader_underelementer
 
@@ -7035,17 +6902,17 @@ WITH
 			a.underelement_kode
 		FROM greg.t_greg_flader a
 		WHERE a.systid_til IS NULL
-	
+
 		UNION
-	
+
 		SELECT
 			a.arbejdssted,
 			a.underelement_kode
 		FROM greg.t_greg_linier a
 		WHERE a.systid_til IS NULL
-	
+
 		UNION
-	
+
 		SELECT
 			a.arbejdssted,
 			a.underelement_kode
@@ -7102,33 +6969,33 @@ WITH
 	),
 
 	spec_poly AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT	
+		SELECT
 			a.arbejdssted,
 			a.underelement_kode,
-			(SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_flader', a.versions_id)) AS speciel
+			(SELECT speciel FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_flader', a.versions_id)) AS speciel
 		FROM greg.t_greg_flader a
 		LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
 		WHERE systid_til IS NULL AND ue.speciel_sql IS NOT NULL
 	),
 
 	spec_line AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT	
+		SELECT
 			a.arbejdssted,
 			a.underelement_kode,
-			(SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_linier', a.versions_id)) AS speciel
+			(SELECT speciel FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_linier', a.versions_id)) AS speciel
 		FROM greg.t_greg_linier a
 		LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
 		WHERE systid_til IS NULL AND ue.speciel_sql IS NOT NULL
 	),
 
 	spec_point AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT	
+		SELECT
 			a.arbejdssted,
 			a.underelement_kode,
 			CASE
 				WHEN ue.speciel_sql = 'REN'
 				THEN b.areal
-				ELSE (SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_punkter', a.versions_id))
+				ELSE (SELECT speciel FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_punkter', a.versions_id))
 			END AS speciel
 		FROM greg.t_greg_punkter a
 		LEFT JOIN spec_ren b ON a.arbejdssted = b.arbejdssted
@@ -7288,17 +7155,17 @@ WITH
 			a.underelement_kode
 		FROM greg.t_greg_flader a
 		WHERE a.systid_til IS NULL
-	
+
 		UNION
-	
+
 		SELECT
 			a.arbejdssted,
 			a.underelement_kode
 		FROM greg.t_greg_linier a
 		WHERE a.systid_til IS NULL
-	
+
 		UNION
-	
+
 		SELECT
 			a.arbejdssted,
 			a.underelement_kode
@@ -7355,7 +7222,7 @@ WITH
 	),
 
 	spec_poly AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT	
+		SELECT
 			a.arbejdssted,
 			a.underelement_kode,
 			(SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_flader', a.versions_id)) AS speciel
@@ -7365,7 +7232,7 @@ WITH
 	),
 
 	spec_line AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT	
+		SELECT
 			a.arbejdssted,
 			a.underelement_kode,
 			(SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_linier', a.versions_id)) AS speciel
@@ -7375,7 +7242,7 @@ WITH
 	),
 
 	spec_point AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT	
+		SELECT
 			a.arbejdssted,
 			a.underelement_kode,
 			CASE
@@ -7465,15 +7332,13 @@ ORDER BY pg_distrikt_nr, underelement_kode;
 
 COMMENT ON VIEW greg.v_maengder_omraader_underelementer_2 IS 'Mængdeoversigt over elementer grupperet pr. område. Benyttes i Mængdekort.xlsm.';
 
-
-
 -- v_oversigt_elementer
 
 DROP VIEW IF EXISTS greg.v_oversigt_elementer;
 
 CREATE VIEW greg.v_oversigt_elementer AS
 
-SELECT 	
+SELECT
 	c.hovedelement_kode AS h_element_kode,
 	c.hovedelement_tekst,
 	b.element_kode,
@@ -7488,89 +7353,6 @@ WHERE a.aktiv IS TRUE AND b.aktiv IS TRUE AND c.aktiv IS TRUE
 ORDER BY c.hovedelement_kode, b.element_kode, a.underelement_kode;
 
 COMMENT ON VIEW greg.v_oversigt_elementer IS 'Elementoversigt. Benyttes i Lister.xlsx.';
-
--- v_oversigt_omraade
-
-CREATE VIEW greg.v_oversigt_omraade AS
-
-SELECT
-	a.pg_distrikt_nr as omraadenr,
-	a.pg_distrikt_nr || ' ' || a.pg_distrikt_tekst AS omraade,
-	b.pg_distrikt_type AS arealtype,
-	CASE
-		WHEN a.vejnr IS NOT NULL
-		THEN c.vejnavn || ' ' || a.vejnr || ' - ' || a.postnr || ' ' || postnr_by
-		WHEN a.vejkode IS NOT NULL
-		THEN c.vejnavn || ' - ' || a.postnr || ' ' || postnr_by
-		ELSE a.postnr || ' ' || d.postnr_by
-	END AS adresse,
-	public.ST_Area(a.geometri)::numeric(10,1) AS areal
-FROM greg.t_greg_omraader a
-LEFT JOIN basis.d_basis_distrikt_type b ON a.pg_distrikt_type_kode = b.pg_distrikt_type_kode
-LEFT JOIN basis.d_basis_vejnavn c ON a.vejkode = c.vejkode
-LEFT JOIN basis.d_basis_postnr d ON a.postnr = d.postnr
-WHERE a.aktiv IS TRUE AND a.systid_til IS NULL
-ORDER BY a.pg_distrikt_nr;
-
-COMMENT ON VIEW greg.v_oversigt_omraade IS 'Look-up for aktive områder. Benyttes i Mængdekort.xlsm.';
-
--- v_oversigt_omraade_2
-
-DROP VIEW IF EXISTS greg.v_oversigt_omraade_2;
-
-CREATE VIEW greg.v_oversigt_omraade_2 AS
-
-SELECT 	
-	a.pg_distrikt_nr || ' ' || a.pg_distrikt_tekst AS omraade,
-	a.postnr || ' ' || c.postnr_by AS distrikt,
-	CASE
-		WHEN a.vejnr IS NOT NULL
-		THEN b.vejnavn || ' ' || a.vejnr
-		ELSE b.vejnavn
-	END AS adresse,
-	d.pg_distrikt_type AS arealtype
-FROM greg.t_greg_omraader a
-LEFT JOIN basis.d_basis_vejnavn b ON a.vejkode = b.vejkode
-LEFT JOIN basis.d_basis_postnr c ON a.postnr = c.postnr
-LEFT JOIN basis.d_basis_distrikt_type d ON a.pg_distrikt_type_kode = d.pg_distrikt_type_kode
-WHERE a.aktiv IS TRUE AND a.systid_til IS NULL
-ORDER BY a.pg_distrikt_nr;
-
-COMMENT ON VIEW greg.v_oversigt_omraade_2 IS 'Områdeoversigt. Benyttes i Lister.xlsx.';
-
--- v_oversigt_omraade_3
-
-DROP VIEW IF EXISTS greg.v_oversigt_omraade_3;
-
-CREATE VIEW greg.v_oversigt_omraade_3 AS
-
-WITH
-
-	tgo AS(
-		SELECT 	
-			ROW_NUMBER() OVER() AS id,
-			a.pg_distrikt_nr as omraadenr,
-			a.pg_distrikt_nr || ' ' || a.pg_distrikt_tekst AS omraade
-		FROM greg.t_greg_omraader a
-		WHERE a.systid_til IS NULL
-	)
-
-SELECT * FROM tgo
-
-UNION
-
-SELECT
-	CASE
-		WHEN (SELECT MAX(id)+1 FROM tgo) IS NOT NULL
-		THEN (SELECT MAX(id)+1 FROM tgo)
-		ELSE 1
-	END AS id,
-	NULL::integer AS omraadenr,
-	'Udenfor område' AS omraade
-
-ORDER BY 1;
-
-COMMENT ON VIEW greg.v_oversigt_omraade_2 IS 'Områdeoversigt (QGIS).';
 
 -- v_oversigt_litra
 
@@ -7621,63 +7403,56 @@ ORDER BY omraade, underelement_kode, litra;
 
 COMMENT ON VIEW greg.v_oversigt_litra IS 'Oversigt over litra og højder. Benyttes i Mængdekort.xlsm.';
 
--- v_atlas
+-- v_oversigt_omraade
 
-CREATE VIEW greg.v_atlas AS
+CREATE VIEW greg.v_oversigt_omraade AS
 
 SELECT
-	a.objekt_id,
-	'Område' AS omraadetype,
-	a.pg_distrikt_nr,
-	a.pg_distrikt_tekst,
-	NULL AS delnavn,
-	b.pg_distrikt_type,
-	NULL AS delomraade,
-	NULL AS delomraade_total,
-	c.vejnavn,
-	a.vejnr,
-	a.postnr,
-	d.postnr_by,
-	a.geometri
+	a.pg_distrikt_nr as omraadenr,
+	a.pg_distrikt_nr || ' ' || a.pg_distrikt_tekst AS omraade,
+	b.pg_distrikt_type AS arealtype,
+	CASE
+		WHEN a.vejnr IS NOT NULL
+		THEN c.vejnavn || ' ' || a.vejnr || ' - ' || a.postnr || ' ' || postnr_by
+		WHEN a.vejkode IS NOT NULL
+		THEN c.vejnavn || ' - ' || a.postnr || ' ' || postnr_by
+		ELSE a.postnr || ' ' || d.postnr_by
+	END AS adresse,
+	public.ST_Area(a.geometri)::numeric(10,1) AS areal
 FROM greg.t_greg_omraader a
 LEFT JOIN basis.d_basis_distrikt_type b ON a.pg_distrikt_type_kode = b.pg_distrikt_type_kode
 LEFT JOIN basis.d_basis_vejnavn c ON a.vejkode = c.vejkode
 LEFT JOIN basis.d_basis_postnr d ON a.postnr = d.postnr
-WHERE a.systid_til IS NULL AND a.aktiv IS TRUE AND a.pg_distrikt_nr NOT IN (SELECT pg_distrikt_nr FROM greg.t_greg_delomraader) AND a.synlig IS TRUE AND a.geometri IS NOT NULL
+WHERE a.aktiv IS TRUE AND a.systid_til IS NULL
+ORDER BY a.pg_distrikt_nr;
 
-UNION
+COMMENT ON VIEW greg.v_oversigt_omraade IS 'Look-up for aktive områder. Benyttes i Mængdekort.xlsm.';
+
+-- v_oversigt_omraade_2
+
+DROP VIEW IF EXISTS greg.v_oversigt_omraade_2;
+
+CREATE VIEW greg.v_oversigt_omraade_2 AS
 
 SELECT
-	a.objekt_id,
-	'Delområde' AS omraadetype,
-	a.pg_distrikt_nr,
-	b.pg_distrikt_tekst,
-	a.delnavn,
-	c.pg_distrikt_type,
-	ROW_NUMBER() OVER(PARTITION BY a.pg_distrikt_nr ORDER BY a.delnavn) AS delomraade,
-	f.delomraade_total,
-	d.vejnavn,
-	b.vejnr,
-	b.postnr,
-	e.postnr_by,
-	a.geometri
-FROM greg.t_greg_delomraader a
-LEFT JOIN greg.t_greg_omraader b ON a.pg_distrikt_nr = b.pg_distrikt_nr AND systid_til IS NULL
-LEFT JOIN basis.d_basis_distrikt_type c ON b.pg_distrikt_type_kode = c.pg_distrikt_type_kode
-LEFT JOIN basis.d_basis_vejnavn d ON b.vejkode = d.vejkode
-LEFT JOIN basis.d_basis_postnr e ON b.postnr = e.postnr
-LEFT JOIN (SELECT
-			pg_distrikt_nr,
-				COUNT(pg_distrikt_nr) AS delomraade_total
-			FROM greg.t_greg_delomraader
-			GROUP BY pg_distrikt_nr) f
-		ON a.pg_distrikt_nr = f.pg_distrikt_nr
-WHERE b.aktiv IS TRUE
-ORDER BY pg_distrikt_nr, delomraade;
+	a.pg_distrikt_nr || ' ' || a.pg_distrikt_tekst AS omraade,
+	a.postnr || ' ' || c.postnr_by AS distrikt,
+	CASE
+		WHEN a.vejnr IS NOT NULL
+		THEN b.vejnavn || ' ' || a.vejnr
+		ELSE b.vejnavn
+	END AS adresse,
+	d.pg_distrikt_type AS arealtype
+FROM greg.t_greg_omraader a
+LEFT JOIN basis.d_basis_vejnavn b ON a.vejkode = b.vejkode
+LEFT JOIN basis.d_basis_postnr c ON a.postnr = c.postnr
+LEFT JOIN basis.d_basis_distrikt_type d ON a.pg_distrikt_type_kode = d.pg_distrikt_type_kode
+WHERE a.aktiv IS TRUE AND a.systid_til IS NULL
+ORDER BY a.pg_distrikt_nr;
 
-COMMENT ON VIEW greg.v_atlas IS 'Samlet områdetabel på baggrund af områder og delområder';
+COMMENT ON VIEW greg.v_oversigt_omraade_2 IS 'Områdeoversigt. Benyttes i Lister.xlsx.';
 
-
+-- Views in schema styles --
 
 -- v_basis_element_lib
 
@@ -7703,7 +7478,7 @@ WITH
 			objekt_type
 		FROM basis.v_basis_elementer
 
-		UNION ALL		
+		UNION ALL
 
 		SELECT
 			3 AS niveau,
@@ -7904,7 +7679,7 @@ DROP VIEW IF EXISTS styles.v_elements_default;
 CREATE VIEW styles.v_elements_default AS
 
 WITH
-	
+
 	style_ AS ( -- Select full element list with styles for each table
 		SELECT
 			ROW_NUMBER() OVER(PARTITION BY a.f_table_name ORDER BY b.kode) - 1 AS row,
@@ -7934,7 +7709,7 @@ WITH
 		LEFT JOIN styles.v_element_list b ON b.niveau = 2 AND EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type))
 		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
-	
+
 	categories_ AS( -- Select list of categories for styles
 		SELECT
 			row,
@@ -8032,14 +7807,14 @@ WITH
 		SELECT
 			*
 		FROM hoved_
-		
+
 		UNION ALL
-		
+
 		SELECT
 			*
 		FROM under_
 	),
-	
+
 	style_ AS (
 		SELECT
 			b.type,
@@ -8073,7 +7848,7 @@ WITH
 		LEFT JOIN union_ b ON EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type)) AND EXISTS(SELECT regexp_matches(b.op_objekt_type, a.geometry_type))
 		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
-	
+
 	categories_ AS (
 		SELECT
 			a.row,
@@ -8082,7 +7857,7 @@ WITH
 			'      <rule filter="&quot;' || a.type || '&quot; = ''' || a.kode || '''" key="{' || (SELECT public.uuid_generate_v1()) || '}" symbol="' || a.row || '" label="' || a.label || E'"/>\n' AS body
 		FROM style_ a
 	),
-	
+
 	string_cat_ AS (
 		SELECT
 			f_table_name,
@@ -8092,7 +7867,7 @@ WITH
 		FROM categories_
 		GROUP BY f_table_name, hovedelement_kode
 	),
-	
+
 	elements_ AS (
 		SELECT
 			a.f_table_name,
@@ -8101,7 +7876,7 @@ WITH
 		FROM style_ a
 		GROUP BY a.f_table_name, a.hovedelement_kode
 	)
-	
+
 SELECT DISTINCT ON (a.f_table_name, a.hovedelement_kode)
 	a.f_table_name,
 	a.hovedelement_kode,
@@ -8120,7 +7895,7 @@ DROP VIEW IF EXISTS styles.v_elements_hovedelementer;
 CREATE VIEW styles.v_elements_hovedelementer AS
 
 WITH
-	
+
 	style_ AS ( -- Select full element list with styles for each table
 		SELECT
 			ROW_NUMBER() OVER(PARTITION BY a.f_table_name ORDER BY b.kode) - 1 AS row,
@@ -8150,7 +7925,7 @@ WITH
 		LEFT JOIN styles.v_element_list b ON b.niveau = 1 AND EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type))
 		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
-	
+
 	categories_ AS( -- Select list of categories for styles
 		SELECT
 			row,
@@ -8224,7 +7999,7 @@ WITH
 		LEFT JOIN styles.v_element_list b ON b.niveau = 3 AND EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type))
 		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
-	
+
 	categories_ AS (
 		SELECT
 			a.row,
@@ -8233,7 +8008,7 @@ WITH
 		FROM style_ a
 		LEFT JOIN basis.e_basis_underelementer b ON a.kode = b.underelement_kode
 	),
-	
+
 	string_cat_ AS (
 		SELECT
 			f_table_name,
@@ -8242,7 +8017,7 @@ WITH
 		FROM categories_
 		GROUP BY f_table_name
 	),
-	
+
 	elements_ AS (
 		SELECT
 			a.f_table_name,
@@ -8250,7 +8025,7 @@ WITH
 		FROM style_ a
 		GROUP BY a.f_table_name
 	)
-	
+
 SELECT
 	a.f_table_name,
 	b.body ||c.body AS body
@@ -8268,7 +8043,7 @@ DROP VIEW IF EXISTS styles.v_elements_historik;
 CREATE VIEW styles.v_elements_historik AS
 
 WITH
-	
+
 	style_ AS ( -- Select full element list with styles for each table
 		SELECT
 			ROW_NUMBER() OVER(PARTITION BY a.f_table_name ORDER BY b.kode) - 1 AS row,
@@ -8298,7 +8073,7 @@ WITH
 		LEFT JOIN styles.v_element_list_historik b ON b.niveau = 2 AND EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type))
 		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
-	
+
 	categories_ AS( -- Select list of categories for styles
 		SELECT
 			row,
@@ -8340,7 +8115,7 @@ LEFT JOIN elements_ c ON a.f_table_name = c.f_table_name;
 
 COMMENT ON VIEW styles.v_elements_historik IS 'Genererer stilarter for historik.';
 
-
+-- Views in schema public --
 
 -- layer_styles
 
@@ -8523,18 +8298,6 @@ WHERE a.stylename = 'HISTORIK';
 -- CREATE INDEXES
 --
 
--- Indexes for tables in schema greg
-
-CREATE INDEX t_greg_flader_gist ON greg.t_greg_flader USING gist (geometri);
-
-CREATE INDEX t_greg_linier_gist ON greg.t_greg_linier USING gist (geometri);
-
-CREATE INDEX t_greg_punkter_gist ON greg.t_greg_punkter USING gist (geometri);
-
-CREATE INDEX t_greg_omraader_gist ON greg.t_greg_omraader USING gist (geometri);
-
-CREATE INDEX t_greg_delomraader_gist ON greg.t_greg_delomraader USING gist (geometri);
-
 -- Indexes for tables in schema grunddata
 
 CREATE INDEX sidx_bygning_geom ON grunddata.bygning USING gist (geom);
@@ -8557,15 +8320,21 @@ CREATE INDEX sidx_soe_geom ON grunddata.soe USING gist (geom);
 
 CREATE INDEX sidx_vejkant_geom ON grunddata.vejkant USING gist (geom);
 
+-- Indexes for tables in schema greg
+
+CREATE INDEX t_greg_flader_gist ON greg.t_greg_flader USING gist (geometri);
+
+CREATE INDEX t_greg_linier_gist ON greg.t_greg_linier USING gist (geometri);
+
+CREATE INDEX t_greg_punkter_gist ON greg.t_greg_punkter USING gist (geometri);
+
+CREATE INDEX t_greg_omraader_gist ON greg.t_greg_omraader USING gist (geometri);
+
+CREATE INDEX t_greg_delomraader_gist ON greg.t_greg_delomraader USING gist (geometri);
+
 --
 -- CREATE TRIGGERS
 --
-
--- Triggers in schema public --
-
--- layer_styles
-
-CREATE TRIGGER layer_styles_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON public.layer_styles FOR EACH ROW EXECUTE PROCEDURE styles.v_layer_styles_trg();
 
 -- Triggers in schema basis --
 
@@ -8583,17 +8352,15 @@ CREATE TRIGGER d_basis_kommunal_kontakt_trg_i BEFORE INSERT ON basis.d_basis_kom
 
 CREATE TRIGGER v_basis_kommunal_kontakt_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_kommunal_kontakt FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_kommunal_kontakt_trg();
 
--- d_basis_udfoerer
+-- d_basis_postnr
 
-CREATE TRIGGER d_basis_udfoerer_trg_i BEFORE INSERT ON basis.d_basis_udfoerer FOR EACH ROW EXECUTE PROCEDURE basis.basis_aktiv_trg();
+CREATE TRIGGER d_basis_postnr_trg_i BEFORE INSERT ON basis.d_basis_postnr FOR EACH ROW EXECUTE PROCEDURE basis.basis_aktiv_trg();
 
-CREATE TRIGGER v_basis_udfoerer_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_udfoerer FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_udfoerer_trg();
+CREATE TRIGGER v_basis_postnr_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_postnr FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_postnr_trg();
 
--- d_basis_udfoerer_entrep
+-- d_basis_prisregulering
 
-CREATE TRIGGER d_basis_udfoerer_entrep_trg_i BEFORE INSERT ON basis.d_basis_udfoerer_entrep FOR EACH ROW EXECUTE PROCEDURE basis.basis_aktiv_trg();
-
-CREATE TRIGGER v_basis_udfoerer_entrep_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_udfoerer_entrep FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_udfoerer_entrep_trg();
+CREATE TRIGGER v_basis_prisregulering_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_prisregulering FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_prisregulering_trg();
 
 -- d_basis_udfoerer_kontakt
 
@@ -8601,11 +8368,11 @@ CREATE TRIGGER d_basis_udfoerer_kontakt_trg_i BEFORE INSERT ON basis.d_basis_udf
 
 CREATE TRIGGER v_basis_udfoerer_kontakt_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_udfoerer_kontakt FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_udfoerer_kontakt_trg();
 
--- d_basis_distrikt_type
+-- d_basis_vejnavn
 
-CREATE TRIGGER d_basis_distrikt_type_trg_i BEFORE INSERT ON basis.d_basis_distrikt_type FOR EACH ROW EXECUTE PROCEDURE basis.basis_aktiv_trg();
+CREATE TRIGGER d_basis_vejnavn_trg_i BEFORE INSERT ON basis.d_basis_vejnavn FOR EACH ROW EXECUTE PROCEDURE basis.basis_aktiv_trg();
 
-CREATE TRIGGER v_basis_distrikt_type_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_distrikt_type FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_distrikt_type_trg();
+CREATE TRIGGER v_basis_vejnavn_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_vejnavn FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_vejnavn_trg();
 
 -- e_basis_hovedelementer
 
@@ -8634,10 +8401,6 @@ CREATE TRIGGER e_basis_underelementer_trg_iu BEFORE INSERT ON basis.e_basis_unde
 CREATE TRIGGER e_basis_underelementer_trg_i_2 BEFORE INSERT ON basis.e_basis_underelementer FOR EACH ROW EXECUTE PROCEDURE basis.e_basis_styles_trg();
 
 CREATE TRIGGER v_basis_underelementer_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_underelementer FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_underelementer_trg();
-
--- d_basis_prisregulering
-
-CREATE TRIGGER v_basis_prisregulering_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_prisregulering FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_prisregulering_trg();
 
 -- Triggers in schema greg --
 
@@ -8679,7 +8442,7 @@ CREATE TRIGGER a_t_greg_omraader_geometri_trg_iu BEFORE INSERT OR UPDATE ON greg
 
 CREATE TRIGGER b_t_greg_omraader_generel_trg_iud BEFORE INSERT OR DELETE OR UPDATE ON greg.t_greg_omraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_generel_trg();
 
-CREATE TRIGGER c_t_greg_omraader_trg_iu BEFORE INSERT OR UPDATE ON greg.t_greg_omraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_omraader_trg();
+CREATE TRIGGER c_t_greg_omraader_trg_i BEFORE INSERT ON greg.t_greg_omraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_omraader_trg();
 
 CREATE TRIGGER a_t_greg_omraader_trg_a_ud AFTER DELETE OR UPDATE ON greg.t_greg_omraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_historik_trg_a_ud();
 
@@ -8695,13 +8458,19 @@ CREATE TRIGGER t_greg_delomraader_trg_iu BEFORE INSERT OR UPDATE ON greg.t_greg_
 
 -- Triggers in schema styles --
 
+-- v_basis_element_lib
+
+CREATE TRIGGER v_basis_element_lib_trg INSTEAD OF INSERT OR DELETE OR UPDATE ON styles.v_basis_element_lib FOR EACH ROW EXECUTE PROCEDURE styles.v_basis_element_lib_trg();
+
 -- layer_styles
 
 CREATE TRIGGER layer_styles_trg BEFORE INSERT OR UPDATE ON styles.layer_styles FOR EACH ROW EXECUTE PROCEDURE styles.layer_styles_trg();
 
--- v_basis_element_lib
+-- Triggers in schema public --
 
-CREATE TRIGGER v_basis_element_lib_trg INSTEAD OF INSERT OR DELETE OR UPDATE ON styles.v_basis_element_lib FOR EACH ROW EXECUTE PROCEDURE styles.v_basis_element_lib_trg();
+-- layer_styles
+
+CREATE TRIGGER layer_styles_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON public.layer_styles FOR EACH ROW EXECUTE PROCEDURE styles.v_layer_styles_trg();
 
 --
 -- CREATE USERGROUPS
@@ -8735,21 +8504,26 @@ BEGIN
 	EXECUTE format('GRANT USAGE ON SCHEMA basis TO %s', role);
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA basis TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA basis GRANT SELECT ON TABLES TO %s', role);
+
 	EXECUTE format('GRANT UPDATE ON TABLE basis.v_basis_bruger_id TO %s', role);
 	EXECUTE format('GRANT UPDATE (navn) ON TABLE basis.d_basis_bruger_id TO %s', role);
+
 
 	EXECUTE format('GRANT USAGE ON SCHEMA greg TO %s', role);
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA greg TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA greg GRANT SELECT ON TABLES TO %s', role);
 
+
 	EXECUTE format('GRANT USAGE ON SCHEMA grunddata TO %s', role);
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA grunddata TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA grunddata GRANT SELECT ON TABLES TO %s', role);
-	
+
+
 	EXECUTE format('GRANT USAGE ON SCHEMA styles TO %s', role);
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA styles TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA styles GRANT SELECT ON TABLES TO %s', role);
-	
+
+
 	EXECUTE format('GRANT USAGE ON SCHEMA public TO %s', role);
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %s', role);
@@ -8786,8 +8560,10 @@ BEGIN
 	EXECUTE format('GRANT USAGE ON SCHEMA basis TO %s', role);
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA basis TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA basis GRANT SELECT ON TABLES TO %s', role);
+
 	EXECUTE format('GRANT UPDATE ON TABLE basis.v_basis_bruger_id TO %s', role);
 	EXECUTE format('GRANT UPDATE (navn) ON TABLE basis.d_basis_bruger_id TO %s', role);
+
 
 	EXECUTE format('GRANT USAGE ON SCHEMA greg TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA greg TO %s', role);
@@ -8797,6 +8573,7 @@ BEGIN
 	EXECUTE format('GRANT ALL ON ALL FUNCTIONS IN SCHEMA greg TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA greg GRANT ALL ON FUNCTIONS TO %s', role);
 
+
 	EXECUTE format('GRANT USAGE ON SCHEMA grunddata TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA grunddata TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA grunddata GRANT ALL ON TABLES TO %s', role);
@@ -8804,11 +8581,13 @@ BEGIN
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA grunddata GRANT ALL ON SEQUENCES TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL FUNCTIONS IN SCHEMA grunddata TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA grunddata GRANT ALL ON FUNCTIONS TO %s', role);
-	
+
+
 	EXECUTE format('GRANT USAGE ON SCHEMA styles TO %s', role);
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA styles TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA styles GRANT SELECT ON TABLES TO %s', role);
-	
+
+
 	EXECUTE format('GRANT USAGE ON SCHEMA public TO %s', role);
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %s', role);
@@ -8850,6 +8629,7 @@ BEGIN
 	EXECUTE format('GRANT ALL ON ALL FUNCTIONS IN SCHEMA basis TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA basis GRANT ALL ON FUNCTIONS TO %s', role);
 
+
 	EXECUTE format('GRANT USAGE ON SCHEMA greg TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA greg TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA greg GRANT ALL ON TABLES TO %s', role);
@@ -8858,6 +8638,7 @@ BEGIN
 	EXECUTE format('GRANT ALL ON ALL FUNCTIONS IN SCHEMA greg TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA greg GRANT ALL ON FUNCTIONS TO %s', role);
 
+
 	EXECUTE format('GRANT USAGE ON SCHEMA grunddata TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA grunddata TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA grunddata GRANT ALL ON TABLES TO %s', role);
@@ -8865,7 +8646,8 @@ BEGIN
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA grunddata GRANT ALL ON SEQUENCES TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL FUNCTIONS IN SCHEMA grunddata TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA grunddata GRANT ALL ON FUNCTIONS TO %s', role);
-	
+
+
 	EXECUTE format('GRANT USAGE ON SCHEMA styles TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA styles TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA styles GRANT ALL ON TABLES TO %s', role);
@@ -8873,7 +8655,8 @@ BEGIN
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA styles GRANT ALL ON SEQUENCES TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL FUNCTIONS IN SCHEMA styles TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA styles GRANT ALL ON FUNCTIONS TO %s', role);
-	
+
+
 	EXECUTE format('GRANT USAGE ON SCHEMA public TO %s', role);
 	EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA public TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO %s', role);
@@ -8881,4 +8664,1288 @@ BEGIN
 END;
 
 $$;
+
+--
+-- INSERTS
+--
+
+-- Inserts in schema basis --
+
+-- d_basis_ansvarlig_myndighed
+
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (66137112, 'Albertslund Kommune', 165, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (60183112, 'Allerød Kommune', 201, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189692, 'Assens Kommune', 420, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (58271713, 'Ballerup Kommune', 151, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189765, 'Billund Kommune', 530, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (26696348, 'Bornholms Regionskommune', 400, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (65113015, 'Brøndby Kommune', 153, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189501, 'Brønderslev Kommune', 810, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (25775635, 'Christiansø', 411, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (12881517, 'Dragør Kommune', 155, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188386, 'Egedal Kommune', 240, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189803, 'Esbjerg Kommune', 561, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (31210917, 'Fanø Kommune', 563, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189714, 'Favrskov Kommune', 710, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188475, 'Faxe Kommune', 320, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188335, 'Fredensborg Kommune', 210, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (69116418, 'Fredericia Kommune', 607, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (11259979, 'Frederiksberg Kommune', 147, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189498, 'Frederikshavn Kommune', 813, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189129, 'Frederikssund Kommune', 250, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188327, 'Furesø Kommune', 190, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188645, 'Faaborg-Midtfyn Kommune', 430, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (19438414, 'Gentofte Kommune', 157, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (62761113, 'Gladsaxe Kommune', 159, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (65120119, 'Glostrup Kommune', 161, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (44023911, 'Greve Kommune', 253, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188440, 'Gribskov Kommune', 270, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188599, 'Guldborgsund Kommune', 376, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189757, 'Haderslev Kommune', 510, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188416, 'Halsnæs Kommune', 260, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189587, 'Hedensted Kommune', 766, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (64502018, 'Helsingør Kommune', 217, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (63640719, 'Herlev Kommune', 163, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189919, 'Herning Kommune', 657, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189366, 'Hillerød Kommune', 219, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189382, 'Hjørring Kommune', 860, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189447, 'Holbæk Kommune', 316, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189927, 'Holstebro Kommune', 661, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189889, 'Horsens Kommune', 615, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (55606617, 'Hvidovre Kommune', 167, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (19501817, 'Høje-Taastrup Kommune', 169, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (70960516, 'Hørsholm Kommune', 223, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189617, 'Ikast-Brande Kommune', 756, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (11931316, 'Ishøj Kommune', 183, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189439, 'Jammerbugt Kommune', 849, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189595, 'Kalundborg Kommune', 326, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189706, 'Kerteminde Kommune', 440, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189897, 'Kolding Kommune', 621, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (64942212, 'Københavns Kommune', 101, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189374, 'Køge Kommune', 259, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188955, 'Langeland Kommune', 482, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188548, 'Lejre Kommune', 350, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189935, 'Lemvig Kommune', 665, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188572, 'Lolland Kommune', 360, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (11715311, 'Lyngby-Taarbæk Kommune', 173, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (45973328, 'Læsø Kommune', 825, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189455, 'Mariagerfjord Kommune', 846, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189684, 'Middelfart Kommune', 410, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (41333014, 'Morsø Kommune', 773, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189986, 'Norddjurs Kommune', 707, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188947, 'Nordfyns Kommune', 480, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189722, 'Nyborg Kommune', 450, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189625, 'Næstved Kommune', 370, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (32264328, 'Odder Kommune', 727, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (35209115, 'Odense Kommune', 461, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188459, 'Odsherred Kommune', 306, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189668, 'Randers Kommune', 730, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189463, 'Rebild Kommune', 840, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189609, 'Ringkøbing-Skjern Kommune', 760, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (18957981, 'Ringsted Kommune', 329, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189404, 'Roskilde Kommune', 265, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188378, 'Rudersdal Kommune', 230, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (65307316, 'Rødovre Kommune', 175, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (23795515, 'Samsø Kommune', 741, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189641, 'Silkeborg Kommune', 740, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189633, 'Skanderborg Kommune', 746, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189579, 'Skive Kommune', 779, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29188505, 'Slagelse Kommune', 330, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (68534917, 'Solrød Kommune', 269, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189994, 'Sorø Kommune', 340, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29208654, 'Stevns Kommune', 336, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189951, 'Struer Kommune', 671, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189730, 'Svendborg Kommune', 479, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189978, 'Syddjurs Kommune', 706, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189773, 'Sønderborg Kommune', 540, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189560, 'Thisted Kommune', 787, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189781, 'Tønder Kommune', 550, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (20310413, 'Tårnby Kommune', 185, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (19583910, 'Vallensbæk Kommune', 187, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189811, 'Varde Kommune', 573, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189838, 'Vejen Kommune', 575, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189900, 'Vejle Kommune', 630, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189471, 'Vesthimmerlands Kommune', 820, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189846, 'Viborg Kommune', 791, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189676, 'Vordingborg Kommune', 390, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (28856075, 'Ærø Kommune', 492, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189854, 'Aabenraa Kommune', 580, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (29189420, 'Aalborg Kommune', 851, 't');
+INSERT INTO basis.d_basis_ansvarlig_myndighed VALUES (55133018, 'Aarhus Kommune', 751, 't');
+
+-- d_basis_bruger_id
+
+-- INSERT INTO basis.d_basis_bruger_id (bruger_id, navn, aktiv) VALUES ();
+
+INSERT INTO basis.d_basis_bruger_id (bruger_id, navn, rolle, aktiv) VALUES ('postgres', 'Administrator', 'a', 't');
+
+-- d_basis_offentlig
+
+INSERT INTO basis.d_basis_offentlig VALUES (1, 'Synlig for alle', 't');
+INSERT INTO basis.d_basis_offentlig VALUES (2, 'Synlig for den ansvarlige myndighed', 't');
+INSERT INTO basis.d_basis_offentlig VALUES (3, 'Synlig for alle myndigheder, men ikke offentligheden', 't');
+
+-- d_basis_oprindelse
+
+INSERT INTO basis.d_basis_oprindelse VALUES (0, 'Ikke udfyldt', 't', NULL);
+INSERT INTO basis.d_basis_oprindelse VALUES (1, 'Ortofoto', 't', 'Der skelnes ikke mellem forskellige producenter og forskellige årgange');
+INSERT INTO basis.d_basis_oprindelse VALUES (2, 'Matrikelkort', 't', 'Matrikelkort fra KMS (København og Frederiksberg). Det forudsættes, at der benyttes opdaterede matrikelkort for datoen for planens indberetning');
+INSERT INTO basis.d_basis_oprindelse VALUES (3, 'Opmåling', 't', 'Kan være med GPS, andet instrument el. lign. Det er ikke et udtryk for præcisi-on, men at det er udført i marken');
+INSERT INTO basis.d_basis_oprindelse VALUES (4, 'FOT / Tekniske kort', 't', 'FOT, DTK, Danmarks Topografisk kortværk eller andre raster kort samt kommunernes tekniske kort eller andre vektorkort. Indtil FOT er landsdækkende benyttes kort10 (jf. overgangsregler for FOT)');
+INSERT INTO basis.d_basis_oprindelse VALUES (5, 'Modelberegning', 't', 'GIS analyser eller modellering');
+INSERT INTO basis.d_basis_oprindelse VALUES (6, 'Tegning', 't', 'Digitaliseret på baggrund af PDF, billede eller andet tegningsmateriale');
+INSERT INTO basis.d_basis_oprindelse VALUES (7, 'Felt-/markbesøg', 't', 'Registrering på baggrund af tilsyn i marken');
+INSERT INTO basis.d_basis_oprindelse VALUES (8, 'Borgeranmeldelse', 't', 'Indberetning via diverse borgerløsninger – eks. "Giv et praj"');
+INSERT INTO basis.d_basis_oprindelse VALUES (9, 'Luftfoto (historiske 1944-1993)', 't', 'Luftfoto er kendetegnet ved ikke at have samme nøjagtighed i georeferingen, men man kan se en del ting, der ikke er på de nuværende ortofoto.');
+INSERT INTO basis.d_basis_oprindelse VALUES (10, 'Skråfoto', 't', 'Luftfoto tager fra de 4 verdenshjørner');
+INSERT INTO basis.d_basis_oprindelse VALUES (11, 'Andre foto', 't', 'Foto taget i jordhøjde - "terræn foto" (street-view, sagsbehandlerfotos, borgerfotos m.v.). Her er det meget tydeligt at se de enkelte detaljer, men også her kan man normalt ikke direkte placere et punkt via fotoet, men må over at gøre det via noget andet.');
+INSERT INTO basis.d_basis_oprindelse VALUES (12, '3D', 't', 'Laserscanning, Digital terrænmodel (DTM) afledninger, termografiske målinger (bestemmelse af temperaturforskelle) o.lign.');
+
+-- d_basis_postnr
+
+INSERT INTO basis.d_basis_postnr VALUES (800, 'Høje Taastrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (900, 'København C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (917, 'Københavns Pakkecent', 't');
+INSERT INTO basis.d_basis_postnr VALUES (960, 'Udland', 't');
+INSERT INTO basis.d_basis_postnr VALUES (999, 'København C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1000, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1050, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1051, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1052, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1053, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1054, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1055, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1056, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1057, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1058, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1059, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1060, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1061, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1062, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1063, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1064, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1065, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1066, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1067, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1068, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1069, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1070, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1071, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1072, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1073, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1074, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1092, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1093, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1095, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1098, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1100, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1101, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1102, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1103, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1104, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1105, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1106, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1107, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1110, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1111, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1112, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1113, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1114, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1115, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1116, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1117, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1118, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1119, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1120, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1121, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1122, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1123, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1124, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1125, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1126, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1127, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1128, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1129, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1130, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1131, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1140, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1147, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1148, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1150, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1151, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1152, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1153, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1154, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1155, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1156, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1157, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1158, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1159, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1160, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1161, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1162, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1164, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1165, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1166, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1167, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1168, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1169, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1170, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1171, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1172, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1173, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1174, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1175, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1200, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1201, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1202, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1203, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1204, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1205, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1206, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1207, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1208, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1209, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1210, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1211, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1213, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1214, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1215, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1216, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1217, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1218, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1219, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1220, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1221, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1240, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1250, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1251, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1253, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1254, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1255, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1256, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1257, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1259, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1260, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1261, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1263, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1264, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1265, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1266, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1267, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1268, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1270, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1271, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1300, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1301, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1302, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1303, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1304, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1306, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1307, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1308, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1309, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1310, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1311, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1312, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1313, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1314, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1315, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1316, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1317, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1318, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1319, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1320, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1321, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1322, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1323, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1324, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1325, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1326, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1327, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1328, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1329, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1350, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1352, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1353, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1354, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1355, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1356, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1357, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1358, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1359, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1360, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1361, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1362, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1363, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1364, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1365, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1366, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1367, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1368, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1369, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1370, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1371, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1400, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1401, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1402, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1403, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1406, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1407, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1408, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1409, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1410, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1411, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1412, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1413, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1414, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1415, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1416, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1417, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1418, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1419, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1420, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1421, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1422, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1423, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1424, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1425, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1426, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1427, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1428, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1429, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1430, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1431, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1432, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1433, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1434, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1435, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1436, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1437, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1438, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1439, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1440, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1441, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1448, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1450, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1451, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1452, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1453, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1454, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1455, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1456, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1457, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1458, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1459, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1460, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1462, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1463, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1464, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1466, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1467, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1468, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1470, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1471, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1472, 'København K', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1500, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1513, 'Centraltastning', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1532, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1533, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1550, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1551, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1552, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1553, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1554, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1555, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1556, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1557, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1558, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1559, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1560, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1561, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1562, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1563, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1564, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1566, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1567, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1568, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1569, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1570, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1571, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1572, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1573, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1574, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1575, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1576, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1577, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1592, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1599, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1600, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1601, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1602, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1603, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1604, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1606, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1607, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1608, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1609, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1610, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1611, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1612, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1613, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1614, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1615, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1616, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1617, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1618, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1619, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1620, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1621, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1622, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1623, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1624, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1630, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1631, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1632, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1633, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1634, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1635, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1650, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1651, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1652, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1653, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1654, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1655, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1656, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1657, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1658, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1659, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1660, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1661, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1662, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1663, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1664, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1665, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1666, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1667, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1668, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1669, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1670, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1671, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1672, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1673, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1674, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1675, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1676, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1677, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1699, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1700, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1701, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1702, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1703, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1704, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1705, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1706, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1707, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1708, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1709, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1710, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1711, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1712, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1714, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1715, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1716, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1717, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1718, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1719, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1720, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1721, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1722, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1723, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1724, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1725, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1726, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1727, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1728, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1729, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1730, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1731, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1732, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1733, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1734, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1735, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1736, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1737, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1738, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1739, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1749, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1750, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1751, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1752, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1753, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1754, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1755, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1756, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1757, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1758, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1759, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1760, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1761, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1762, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1763, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1764, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1765, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1766, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1770, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1771, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1772, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1773, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1774, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1775, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1777, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1780, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1785, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1786, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1787, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1790, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1799, 'København V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1800, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1801, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1802, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1803, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1804, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1805, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1806, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1807, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1808, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1809, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1810, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1811, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1812, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1813, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1814, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1815, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1816, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1817, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1818, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1819, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1820, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1822, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1823, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1824, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1825, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1826, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1827, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1828, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1829, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1850, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1851, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1852, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1853, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1854, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1855, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1856, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1857, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1860, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1861, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1862, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1863, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1864, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1865, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1866, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1867, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1868, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1870, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1871, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1872, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1873, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1874, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1875, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1876, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1877, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1878, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1879, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1900, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1901, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1902, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1903, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1904, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1905, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1906, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1908, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1909, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1910, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1911, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1912, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1913, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1914, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1915, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1916, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1917, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1920, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1921, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1922, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1923, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1924, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1925, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1926, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1927, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1928, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1950, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1951, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1952, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1953, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1954, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1955, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1956, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1957, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1958, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1959, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1960, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1961, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1962, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1963, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1964, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1965, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1966, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1967, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1970, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1971, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1972, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1973, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (1974, 'Frederiksberg C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2000, 'Frederiksberg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2100, 'København Ø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2150, 'Nordhavn', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2200, 'København N', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2300, 'København S', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2400, 'København NV', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2450, 'København SV', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2500, 'Valby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2600, 'Glostrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2605, 'Brøndby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2610, 'Rødovre', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2620, 'Albertslund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2625, 'Vallensbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2630, 'Taastrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2635, 'Ishøj', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2640, 'Hedehusene', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2650, 'Hvidovre', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2660, 'Brøndby Strand', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2665, 'Vallensbæk Strand', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2670, 'Greve', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2680, 'Solrød Strand', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2690, 'Karlslunde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2700, 'Brønshøj', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2720, 'Vanløse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2730, 'Herlev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2740, 'Skovlunde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2750, 'Ballerup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2760, 'Måløv', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2765, 'Smørum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2770, 'Kastrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2791, 'Dragør', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2800, 'Kongens Lyngby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2820, 'Gentofte', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2830, 'Virum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2840, 'Holte', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2850, 'Nærum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2860, 'Søborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2870, 'Dyssegård', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2880, 'Bagsværd', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2900, 'Hellerup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2920, 'Charlottenlund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2930, 'Klampenborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2942, 'Skodsborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2950, 'Vedbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2960, 'Rungsted Kyst', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2970, 'Hørsholm', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2980, 'Kokkedal', 't');
+INSERT INTO basis.d_basis_postnr VALUES (2990, 'Nivå', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3000, 'Helsingør', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3050, 'Humlebæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3060, 'Espergærde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3070, 'Snekkersten', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3080, 'Tikøb', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3100, 'Hornbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3120, 'Dronningmølle', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3140, 'Ålsgårde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3150, 'Hellebæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3200, 'Helsinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3210, 'Vejby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3220, 'Tisvildeleje', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3230, 'Græsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3250, 'Gilleleje', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3300, 'Frederiksværk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3310, 'Ølsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3320, 'Skævinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3330, 'Gørløse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3360, 'Liseleje', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3370, 'Melby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3390, 'Hundested', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3400, 'Hillerød', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3450, 'Allerød', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3460, 'Birkerød', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3480, 'Fredensborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3490, 'Kvistgård', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3500, 'Værløse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3520, 'Farum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3540, 'Lynge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3550, 'Slangerup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3600, 'Frederikssund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3630, 'Jægerspris', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3650, 'Ølstykke', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3660, 'Stenløse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3670, 'Veksø Sjælland', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3700, 'Rønne', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3720, 'Aakirkeby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3730, 'Nexø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3740, 'Svaneke', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3751, 'Østermarie', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3760, 'Gudhjem', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3770, 'Allinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3782, 'Klemensker', 't');
+INSERT INTO basis.d_basis_postnr VALUES (3790, 'Hasle', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4000, 'Roskilde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4030, 'Tune', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4040, 'Jyllinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4050, 'Skibby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4060, 'Kirke Såby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4070, 'Kirke Hyllinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4100, 'Ringsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4130, 'Viby Sjælland', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4140, 'Borup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4160, 'Herlufmagle', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4171, 'Glumsø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4173, 'Fjenneslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4174, 'Jystrup Midtsj', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4180, 'Sorø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4190, 'Munke Bjergby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4200, 'Slagelse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4220, 'Korsør', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4230, 'Skælskør', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4241, 'Vemmelev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4242, 'Boeslunde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4243, 'Rude', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4250, 'Fuglebjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4261, 'Dalmose', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4262, 'Sandved', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4270, 'Høng', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4281, 'Gørlev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4291, 'Ruds Vedby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4293, 'Dianalund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4295, 'Stenlille', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4296, 'Nyrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4300, 'Holbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4320, 'Lejre', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4330, 'Hvalsø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4340, 'Tølløse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4350, 'Ugerløse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4360, 'Kirke Eskilstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4370, 'Store Merløse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4390, 'Vipperød', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4400, 'Kalundborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4420, 'Regstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4440, 'Mørkøv', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4450, 'Jyderup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4460, 'Snertinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4470, 'Svebølle', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4480, 'Store Fuglede', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4490, 'Jerslev Sjælland', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4500, 'Nykøbing Sj', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4520, 'Svinninge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4532, 'Gislinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4534, 'Hørve', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4540, 'Fårevejle', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4550, 'Asnæs', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4560, 'Vig', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4571, 'Grevinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4572, 'Nørre Asmindrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4573, 'Højby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4581, 'Rørvig', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4583, 'Sjællands Odde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4591, 'Føllenslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4592, 'Sejerø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4593, 'Eskebjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4600, 'Køge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4621, 'Gadstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4622, 'Havdrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4623, 'Lille Skensved', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4632, 'Bjæverskov', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4640, 'Faxe', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4652, 'Hårlev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4653, 'Karise', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4654, 'Faxe Ladeplads', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4660, 'Store Heddinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4671, 'Strøby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4672, 'Klippinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4673, 'Rødvig Stevns', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4681, 'Herfølge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4682, 'Tureby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4683, 'Rønnede', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4684, 'Holmegaard', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4690, 'Haslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4700, 'Næstved', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4720, 'Præstø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4733, 'Tappernøje', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4735, 'Mern', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4736, 'Karrebæksminde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4750, 'Lundby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4760, 'Vordingborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4771, 'Kalvehave', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4772, 'Langebæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4773, 'Stensved', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4780, 'Stege', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4791, 'Borre', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4792, 'Askeby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4793, 'Bogø By', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4800, 'Nykøbing F', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4840, 'Nørre Alslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4850, 'Stubbekøbing', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4862, 'Guldborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4863, 'Eskilstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4871, 'Horbelev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4872, 'Idestrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4873, 'Væggerløse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4874, 'Gedser', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4880, 'Nysted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4891, 'Toreby L', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4892, 'Kettinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4894, 'Øster Ulslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4895, 'Errindlev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4900, 'Nakskov', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4912, 'Harpelunde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4913, 'Horslunde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4920, 'Søllested', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4930, 'Maribo', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4941, 'Bandholm', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4943, 'Torrig L', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4944, 'Fejø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4951, 'Nørreballe', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4952, 'Stokkemarke', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4953, 'Vesterborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4960, 'Holeby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4970, 'Rødby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4983, 'Dannemare', 't');
+INSERT INTO basis.d_basis_postnr VALUES (4990, 'Sakskøbing', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5000, 'Odense C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5200, 'Odense V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5210, 'Odense NV', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5220, 'Odense SØ', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5230, 'Odense M', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5240, 'Odense NØ', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5250, 'Odense SV', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5260, 'Odense S', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5270, 'Odense N', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5290, 'Marslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5300, 'Kerteminde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5320, 'Agedrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5330, 'Munkebo', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5350, 'Rynkeby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5370, 'Mesinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5380, 'Dalby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5390, 'Martofte', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5400, 'Bogense', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5450, 'Otterup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5462, 'Morud', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5463, 'Harndrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5464, 'Brenderup Fyn', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5466, 'Asperup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5471, 'Søndersø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5474, 'Veflinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5485, 'Skamby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5491, 'Blommenslyst', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5492, 'Vissenbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5500, 'Middelfart', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5540, 'Ullerslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5550, 'Langeskov', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5560, 'Aarup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5580, 'Nørre Aaby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5591, 'Gelsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5592, 'Ejby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5600, 'Faaborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5610, 'Assens', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5620, 'Glamsbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5631, 'Ebberup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5642, 'Millinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5672, 'Broby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5683, 'Haarby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5690, 'Tommerup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5700, 'Svendborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5750, 'Ringe', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5762, 'Vester Skerninge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5771, 'Stenstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5772, 'Kværndrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5792, 'Årslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5800, 'Nyborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5853, 'Ørbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5854, 'Gislev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5856, 'Ryslinge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5863, 'Ferritslev Fyn', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5871, 'Frørup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5874, 'Hesselager', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5881, 'Skårup Fyn', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5882, 'Vejstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5883, 'Oure', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5884, 'Gudme', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5892, 'Gudbjerg Sydfyn', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5900, 'Rudkøbing', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5932, 'Humble', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5935, 'Bagenkop', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5953, 'Tranekær', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5960, 'Marstal', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5970, 'Ærøskøbing', 't');
+INSERT INTO basis.d_basis_postnr VALUES (5985, 'Søby Ærø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6000, 'Kolding', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6040, 'Egtved', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6051, 'Almind', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6052, 'Viuf', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6064, 'Jordrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6070, 'Christiansfeld', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6091, 'Bjert', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6092, 'Sønder Stenderup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6093, 'Sjølund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6094, 'Hejls', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6100, 'Haderslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6200, 'Aabenraa', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6230, 'Rødekro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6240, 'Løgumkloster', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6261, 'Bredebro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6270, 'Tønder', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6280, 'Højer', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6300, 'Gråsten', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6310, 'Broager', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6320, 'Egernsund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6330, 'Padborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6340, 'Kruså', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6360, 'Tinglev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6372, 'Bylderup-Bov', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6392, 'Bolderslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6400, 'Sønderborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6430, 'Nordborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6440, 'Augustenborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6470, 'Sydals', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6500, 'Vojens', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6510, 'Gram', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6520, 'Toftlund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6534, 'Agerskov', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6535, 'Branderup J', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6541, 'Bevtoft', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6560, 'Sommersted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6580, 'Vamdrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6600, 'Vejen', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6621, 'Gesten', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6622, 'Bække', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6623, 'Vorbasse', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6630, 'Rødding', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6640, 'Lunderskov', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6650, 'Brørup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6660, 'Lintrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6670, 'Holsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6682, 'Hovborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6683, 'Føvling', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6690, 'Gørding', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6700, 'Esbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6705, 'Esbjerg Ø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6710, 'Esbjerg V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6715, 'Esbjerg N', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6720, 'Fanø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6731, 'Tjæreborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6740, 'Bramming', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6752, 'Glejbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6753, 'Agerbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6760, 'Ribe', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6771, 'Gredstedbro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6780, 'Skærbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6792, 'Rømø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6800, 'Varde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6818, 'Årre', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6823, 'Ansager', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6830, 'Nørre Nebel', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6840, 'Oksbøl', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6851, 'Janderup Vestj', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6852, 'Billum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6853, 'Vejers Strand', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6854, 'Henne', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6855, 'Outrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6857, 'Blåvand', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6862, 'Tistrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6870, 'Ølgod', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6880, 'Tarm', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6893, 'Hemmet', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6900, 'Skjern', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6920, 'Videbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6933, 'Kibæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6940, 'Lem St', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6950, 'Ringkøbing', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6960, 'Hvide Sande', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6971, 'Spjald', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6973, 'Ørnhøj', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6980, 'Tim', 't');
+INSERT INTO basis.d_basis_postnr VALUES (6990, 'Ulfborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7000, 'Fredericia', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7007, 'Fredericia', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7080, 'Børkop', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7100, 'Vejle', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7120, 'Vejle Øst', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7130, 'Juelsminde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7140, 'Stouby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7150, 'Barrit', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7160, 'Tørring', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7171, 'Uldum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7173, 'Vonge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7182, 'Bredsten', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7183, 'Randbøl', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7184, 'Vandel', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7190, 'Billund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7200, 'Grindsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7250, 'Hejnsvig', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7260, 'Sønder Omme', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7270, 'Stakroge', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7280, 'Sønder Felding', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7300, 'Jelling', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7321, 'Gadbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7323, 'Give', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7330, 'Brande', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7361, 'Ejstrupholm', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7362, 'Hampen', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7400, 'Herning', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7430, 'Ikast', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7441, 'Bording', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7442, 'Engesvang', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7451, 'Sunds', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7470, 'Karup J', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7480, 'Vildbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7490, 'Aulum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7500, 'Holstebro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7540, 'Haderup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7550, 'Sørvad', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7560, 'Hjerm', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7570, 'Vemb', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7600, 'Struer', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7620, 'Lemvig', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7650, 'Bøvlingbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7660, 'Bækmarksbro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7673, 'Harboøre', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7680, 'Thyborøn', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7700, 'Thisted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7730, 'Hanstholm', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7741, 'Frøstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7742, 'Vesløs', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7752, 'Snedsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7755, 'Bedsted Thy', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7760, 'Hurup Thy', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7770, 'Vestervig', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7790, 'Thyholm', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7800, 'Skive', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7830, 'Vinderup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7840, 'Højslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7850, 'Stoholm Jyll', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7860, 'Spøttrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7870, 'Roslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7884, 'Fur', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7900, 'Nykøbing M', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7950, 'Erslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7960, 'Karby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7970, 'Redsted M', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7980, 'Vils', 't');
+INSERT INTO basis.d_basis_postnr VALUES (7990, 'Øster Assels', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8000, 'Aarhus C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8200, 'Aarhus N', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8210, 'Aarhus V', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8220, 'Brabrand', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8230, 'Åbyhøj', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8240, 'Risskov', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8245, 'Risskov Ø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8250, 'Egå', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8260, 'Viby J', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8270, 'Højbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8300, 'Odder', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8305, 'Samsø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8310, 'Tranbjerg J', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8320, 'Mårslet', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8330, 'Beder', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8340, 'Malling', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8350, 'Hundslund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8355, 'Solbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8361, 'Hasselager', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8362, 'Hørning', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8370, 'Hadsten', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8380, 'Trige', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8381, 'Tilst', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8382, 'Hinnerup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8400, 'Ebeltoft', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8410, 'Rønde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8420, 'Knebel', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8444, 'Balle', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8450, 'Hammel', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8462, 'Harlev J', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8464, 'Galten', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8471, 'Sabro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8472, 'Sporup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8500, 'Grenaa', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8520, 'Lystrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8530, 'Hjortshøj', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8541, 'Skødstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8543, 'Hornslet', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8544, 'Mørke', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8550, 'Ryomgård', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8560, 'Kolind', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8570, 'Trustrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8581, 'Nimtofte', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8585, 'Glesborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8586, 'Ørum Djurs', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8592, 'Anholt', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8600, 'Silkeborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8620, 'Kjellerup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8632, 'Lemming', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8641, 'Sorring', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8643, 'Ans By', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8653, 'Them', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8654, 'Bryrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8660, 'Skanderborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8670, 'Låsby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8680, 'Ry', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8700, 'Horsens', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8721, 'Daugård', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8722, 'Hedensted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8723, 'Løsning', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8732, 'Hovedgård', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8740, 'Brædstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8751, 'Gedved', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8752, 'Østbirk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8762, 'Flemming', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8763, 'Rask Mølle', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8765, 'Klovborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8766, 'Nørre Snede', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8781, 'Stenderup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8783, 'Hornsyld', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8800, 'Viborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8830, 'Tjele', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8831, 'Løgstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8832, 'Skals', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8840, 'Rødkærsbro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8850, 'Bjerringbro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8860, 'Ulstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8870, 'Langå', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8881, 'Thorsø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8882, 'Fårvang', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8883, 'Gjern', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8900, 'Randers C', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8920, 'Randers NV', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8930, 'Randers NØ', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8940, 'Randers SV', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8950, 'Ørsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8960, 'Randers SØ', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8961, 'Allingåbro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8963, 'Auning', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8970, 'Havndal', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8981, 'Spentrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8983, 'Gjerlev J', 't');
+INSERT INTO basis.d_basis_postnr VALUES (8990, 'Fårup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9000, 'Aalborg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9200, 'Aalborg SV', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9210, 'Aalborg SØ', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9220, 'Aalborg Øst', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9230, 'Svenstrup J', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9240, 'Nibe', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9260, 'Gistrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9270, 'Klarup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9280, 'Storvorde', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9293, 'Kongerslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9300, 'Sæby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9310, 'Vodskov', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9320, 'Hjallerup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9330, 'Dronninglund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9340, 'Asaa', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9352, 'Dybvad', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9362, 'Gandrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9370, 'Hals', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9380, 'Vestbjerg', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9381, 'Sulsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9382, 'Tylstrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9400, 'Nørresundby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9430, 'Vadum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9440, 'Aabybro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9460, 'Brovst', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9480, 'Løkken', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9490, 'Pandrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9492, 'Blokhus', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9493, 'Saltum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9500, 'Hobro', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9510, 'Arden', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9520, 'Skørping', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9530, 'Støvring', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9541, 'Suldrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9550, 'Mariager', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9560, 'Hadsund', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9574, 'Bælum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9575, 'Terndrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9600, 'Aars', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9610, 'Nørager', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9620, 'Aalestrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9631, 'Gedsted', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9632, 'Møldrup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9640, 'Farsø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9670, 'Løgstør', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9681, 'Ranum', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9690, 'Fjerritslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9700, 'Brønderslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9740, 'Jerslev J', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9750, 'Østervrå', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9760, 'Vrå', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9800, 'Hjørring', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9830, 'Tårs', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9850, 'Hirtshals', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9870, 'Sindal', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9881, 'Bindslev', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9900, 'Frederikshavn', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9940, 'Læsø', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9970, 'Strandby', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9981, 'Jerup', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9982, 'Ålbæk', 't');
+INSERT INTO basis.d_basis_postnr VALUES (9990, 'Skagen', 't');
+
+-- d_basis_status
+
+INSERT INTO basis.d_basis_status VALUES (0, 'Ukendt', 't');
+INSERT INTO basis.d_basis_status VALUES (1, 'Kladde', 't');
+INSERT INTO basis.d_basis_status VALUES (2, 'Forslag', 't');
+INSERT INTO basis.d_basis_status VALUES (3, 'Gældende / Vedtaget', 't');
+INSERT INTO basis.d_basis_status VALUES (4, 'Ikke gældende / Aflyst', 't');
+
+-- d_basis_tilstand
+
+INSERT INTO basis.d_basis_tilstand VALUES (1, 'Dårlig', 't', 'Udskiftning eller vedligeholdelse tiltrængt/påkrævet. Fungerer ikke efter hensigten eller i fare for det sker inden for kort tid.');
+INSERT INTO basis.d_basis_tilstand VALUES (2, 'Middel', 't', 'Fungerer efter hensigten, men kunne trænge til vedligeholdelse for at forlænge levetiden/funktionen');
+INSERT INTO basis.d_basis_tilstand VALUES (3, 'God', 't', 'Tæt på lige så god som et nyt.');
+INSERT INTO basis.d_basis_tilstand VALUES (8, 'Andet', 't', 'Anden tilstand end Dårlig, Middel, God eller Ukendt.');
+INSERT INTO basis.d_basis_tilstand VALUES (9, 'Ukendt', 't', 'Mangler viden til at kunne udfylde værdien med Dårlig, Middel eller God.');
+
+-- Inserts in schema styles --
+
+-- d_hex_rgb
+
+INSERT INTO styles.d_hex_rgb VALUES ('0', 0);
+INSERT INTO styles.d_hex_rgb VALUES ('1', 1);
+INSERT INTO styles.d_hex_rgb VALUES ('2', 2);
+INSERT INTO styles.d_hex_rgb VALUES ('3', 3);
+INSERT INTO styles.d_hex_rgb VALUES ('4', 4);
+INSERT INTO styles.d_hex_rgb VALUES ('5', 5);
+INSERT INTO styles.d_hex_rgb VALUES ('6', 6);
+INSERT INTO styles.d_hex_rgb VALUES ('7', 7);
+INSERT INTO styles.d_hex_rgb VALUES ('8', 8);
+INSERT INTO styles.d_hex_rgb VALUES ('9', 9);
+INSERT INTO styles.d_hex_rgb VALUES ('a', 10);
+INSERT INTO styles.d_hex_rgb VALUES ('b', 11);
+INSERT INTO styles.d_hex_rgb VALUES ('c', 12);
+INSERT INTO styles.d_hex_rgb VALUES ('d', 13);
+INSERT INTO styles.d_hex_rgb VALUES ('e', 14);
+INSERT INTO styles.d_hex_rgb VALUES ('f', 15);
+
+-- d_tables
+
+INSERT INTO styles.d_tables VALUES ('v_greg_flader', 'F');
+INSERT INTO styles.d_tables VALUES ('v_greg_linier', 'L');
+INSERT INTO styles.d_tables VALUES ('v_greg_punkter', 'P');
 

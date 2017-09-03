@@ -1,0 +1,1 @@
+"C:\Program Files\PostgreSQL\9.6\bin\createdb" -h localhost -p 5432 -U postgres -W groenreg & "C:\Program Files\PostgreSQL\9.6\bin\psql" -h localhost -p 5432 -U postgres -W -d groenreg
