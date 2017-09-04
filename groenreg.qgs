@@ -5,7 +5,7 @@
   <evaluateDefaultValues active="0"/>
   <layer-tree-group expanded="1" checked="Qt::PartiallyChecked" name="">
     <customproperties/>
-    <layer-tree-group expanded="0" checked="Qt::PartiallyChecked" name="Områder">
+    <layer-tree-group expanded="1" checked="Qt::PartiallyChecked" name="Områder">
       <customproperties/>
       <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="v_greg_omraader20170721083345460" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' table=&quot;greg&quot;.&quot;v_greg_omraader&quot; (geometri) sql=" name="Områder">
         <customproperties>
@@ -378,7 +378,7 @@
     </custom-order>
   </layer-tree-canvas>
   <legend updateDrawingOrder="true">
-    <legendgroup open="false" checked="Qt::PartiallyChecked" name="Områder">
+    <legendgroup open="true" checked="Qt::PartiallyChecked" name="Områder">
       <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="Områder" showFeatureCount="0">
         <filegroup open="false" hidden="false">
           <legendlayerfile isInOverview="0" layerid="v_greg_omraader20170721083345460" visible="1"/>
@@ -6788,7 +6788,7 @@ def my_form_open(dialog, layer, feature):
           <widgetv2config fieldEditable="0" constraint="" labelOnTop="0" constraintDescription="" notNull="0"/>
         </edittype>
         <edittype widgetv2type="ValueRelation" name="pg_distrikt_nr">
-          <widgetv2config OrderByValue="0" AllowNull="0" FilterExpression="&quot;omraadenr&quot; IS NOT NULL" UseCompleter="0" fieldEditable="1" Key="omraadenr" constraint="" Layer="v_oversigt_omraade20170721084315120" Value="omraade" labelOnTop="0" constraintDescription="" AllowMulti="0" notNull="0"/>
+          <widgetv2config OrderByValue="0" AllowNull="0" FilterExpression="" UseCompleter="0" fieldEditable="1" Key="pg_distrikt_nr" constraint="" Layer="v_greg_omraader20170721083345460" Value="pg_distrikt_nr" labelOnTop="0" constraintDescription="" AllowMulti="0" notNull="0"/>
         </edittype>
         <edittype widgetv2type="TextEdit" name="delnavn">
           <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
