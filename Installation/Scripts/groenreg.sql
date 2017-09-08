@@ -1,3 +1,13 @@
+/*
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+the GNU General Public License for more details. 
+*/
+
+
 --
 -- DROP SCHEMAS AND MISC.
 --
@@ -83,8 +93,7 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'Generate universally unique identifiers (UU
 -- Functions in schema basis --
 
 -- multiply_aggregate(float, float)
-
-DROP FUNCTION IF EXISTS basis.multiply_aggregate(float, float) CASCADE;
+-- DROP FUNCTION IF EXISTS basis.multiply_aggregate(float, float) CASCADE;
 
 CREATE FUNCTION basis.multiply_aggregate(float, float)
 	RETURNS float 
@@ -103,8 +112,7 @@ COMMENT ON FUNCTION basis.multiply_aggregate(float, float) IS 'Funktion til at f
 CREATE AGGREGATE basis.multiply (basetype = float, sfunc = basis.multiply_aggregate, stype = float, initcond = 1);
 
 -- f_prisregulering_produkt(dag integer, maaned integer, aar integer)
-
-DROP FUNCTION IF EXISTS basis.f_prisregulering_produkt(dag integer, maaned integer, aar integer);
+-- DROP FUNCTION IF EXISTS basis.f_prisregulering_produkt(dag integer, maaned integer, aar integer);
 
 CREATE FUNCTION basis.f_prisregulering_produkt(dag integer, maaned integer, aar integer)
 	RETURNS TABLE(
@@ -122,8 +130,7 @@ COMMENT ON FUNCTION basis.f_prisregulering_produkt(dag integer, maaned integer, 
 -- Functions in schema greg --
 
 -- f_aendring_log(aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_aendring_log(aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_aendring_log(aar integer);
 
 CREATE FUNCTION greg.f_aendring_log(aar integer)
 	RETURNS TABLE(
@@ -180,8 +187,7 @@ $$;
 COMMENT ON FUNCTION greg.f_aendring_log(aar integer) IS 'Funktion til at generere en samlet ændringslog for flader, linier, punkter og områder indenfor et givent år. Format: yyyy.';
 
 -- f_aendring_log_flader(aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_aendring_log_flader(aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_aendring_log_flader(aar integer);
 
 CREATE FUNCTION greg.f_aendring_log_flader(aar integer)
 	RETURNS TABLE(
@@ -203,46 +209,26 @@ $$
 		column_names AS ( -- Select all column names as rows in a single column
 			SELECT
 				ordinal_position AS row,
-				column_name
+				column_name,
+				data_type
 			FROM information_schema.columns
 			WHERE table_schema = 'greg' AND table_name = 't_greg_flader'
 		),
 
-		raw AS ( -- Select rows where commas has been replaced with semi colon
+		column_string AS ( -- Select all column names as one string where commas will be replace from relevant columns
 			SELECT
-				-- Automated values
-				versions_id,
-				objekt_id,
-				oprettet,
-				systid_fra,
-				systid_til,
-				bruger_id_start,
-				bruger_id_slut,
-				-- Geometry
-				geometri,
-				-- FKG #1
-				cvr_kode,
-				oprindkode,
-				statuskode,
-				off_kode,
-				-- FKG #2
-				regexp_replace(note, ',', ';', 'g'),
-				regexp_replace(link, ',', ';', 'g'),
-				vejkode,
-				tilstand_kode,
-				anlaegsaar,
-				udfoerer_entrep_kode,
-				kommunal_kontakt_kode,
-				-- FKG #3
-				arbejdssted,
-				regexp_replace(underelement_kode, ',', ';', 'g'),
-				-- Measurements
-				hoejde,
-				-- Table specific
-				klip_sider,
-				regexp_replace(litra, ',', ';', 'g')
-			FROM greg.t_greg_flader
-			WHERE EXTRACT (YEAR FROM systid_til) = $1 OR EXTRACT (YEAR FROM systid_fra) = $1 -- Where there has been some interaction during the year
+				string_agg(CASE
+								WHEN data_type = ANY(string_to_array((SELECT text_ FROM greg.variabel('data_type')), ','))
+								THEN 'regexp_replace(' || column_name || ', '','', '';'', ''g'')'
+								ELSE column_name
+							END, ',') AS columns
+			FROM column_names
+		),
+
+		raw AS ( -- Select rows as record where commas has been replaced with semi colon
+			SELECT
+				*
+			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_flader', $1)
 		),
 
 		compare AS ( -- Select a column with the old values and the new values for an object that has been changed
@@ -254,8 +240,8 @@ $$
 			FROM (	SELECT
 						ROW_NUMBER() OVER() AS row, -- Each versions_id gets one row number for all its records
 						a.versions_id,
-						regexp_split_to_table(regexp_replace(ROW(a.*)::text, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
-						regexp_split_to_table(regexp_replace(ROW(b.*)::text, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
+						regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
+						regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
 					FROM raw a
 					LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
 					WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
@@ -412,8 +398,7 @@ $$;
 COMMENT ON FUNCTION greg.f_aendring_log_flader(aar integer) IS 'Funktion til at generere en ændringslog for flader indenfor et givent år. Format: yyyy.';
 
 -- f_aendring_log_linier(aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_aendring_log_linier(aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_aendring_log_linier(aar integer);
 
 CREATE FUNCTION greg.f_aendring_log_linier(aar integer)
 	RETURNS TABLE(
@@ -435,46 +420,26 @@ $$
 		column_names AS ( -- Select all column names as rows in a single column
 			SELECT
 				ordinal_position AS row,
-				column_name
+				column_name,
+				data_type
 			FROM information_schema.columns
 			WHERE table_schema = 'greg' AND table_name = 't_greg_linier'
 		),
 
-		raw AS ( -- Select rows where commas has been replaced with semi colon
+		column_string AS ( -- Select all column names as one string where commas will be replace from relevant columns
 			SELECT
-				-- Automated values
-				versions_id,
-				objekt_id,
-				oprettet,
-				systid_fra,
-				systid_til,
-				bruger_id_start,
-				bruger_id_slut,
-				-- Geometry
-				geometri,
-				-- FKG #1
-				cvr_kode,
-				oprindkode,
-				statuskode,
-				off_kode,
-				-- FKG #2
-				regexp_replace(note, ',', ';', 'g'),
-				regexp_replace(link, ',', ';', 'g'),
-				vejkode,
-				tilstand_kode,
-				anlaegsaar,
-				udfoerer_entrep_kode,
-				kommunal_kontakt_kode,
-				-- FKG #3
-				arbejdssted,
-				regexp_replace(underelement_kode, ',', ';', 'g'),
-				-- Measurements
-				bredde,
-				hoejde,
-				-- Table specific
-				regexp_replace(litra, ',', ';', 'g')
-			FROM greg.t_greg_linier
-			WHERE EXTRACT (YEAR FROM systid_til) = $1 OR EXTRACT (YEAR FROM systid_fra) = $1 -- Where there has been some interaction during the year
+				string_agg(CASE
+								WHEN data_type = ANY(string_to_array((SELECT text_ FROM greg.variabel('data_type')), ','))
+								THEN 'regexp_replace(' || column_name || ', '','', '';'', ''g'')'
+								ELSE column_name
+							END, ',') AS columns
+			FROM column_names
+		),
+
+		raw AS ( -- Select rows as record where commas has been replaced with semi colon
+			SELECT
+				*
+			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_linier', $1)
 		),
 
 		compare AS ( -- Select a column with the old values and the new values for an object that has been changed
@@ -486,8 +451,8 @@ $$
 			FROM (	SELECT
 						ROW_NUMBER() OVER() AS row, -- Each versions_id gets one row number for all its records
 						a.versions_id,
-						regexp_split_to_table(regexp_replace(ROW(a.*)::text, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
-						regexp_split_to_table(regexp_replace(ROW(b.*)::text, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
+						regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
+						regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
 					FROM raw a
 					LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
 					WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
@@ -644,8 +609,7 @@ $$;
 COMMENT ON FUNCTION greg.f_aendring_log_linier(aar integer) IS 'Funktion til at generere en ændringslog for linier indenfor et givent år. Format: yyyy.';
 
 -- f_aendring_log_punkter(aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_aendring_log_punkter(aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_aendring_log_punkter(aar integer);
 
 CREATE FUNCTION greg.f_aendring_log_punkter(aar integer)
 	RETURNS TABLE(
@@ -667,50 +631,26 @@ $$
 		column_names AS ( -- Select all column names as rows in a single column
 			SELECT
 				ordinal_position AS row,
-				column_name
+				column_name,
+				data_type
 			FROM information_schema.columns
 			WHERE table_schema = 'greg' AND table_name = 't_greg_punkter'
 		),
 
-		raw AS ( -- Select rows where commas has been replaced with semi colon
+		column_string AS ( -- Select all column names as one string where commas will be replace from relevant columns
 			SELECT
-				-- Automated values
-				versions_id,
-				objekt_id,
-				oprettet,
-				systid_fra,
-				systid_til,
-				bruger_id_start,
-				bruger_id_slut,
-				-- Geometry
-				geometri,
-				-- FKG #1
-				cvr_kode,
-				oprindkode,
-				statuskode,
-				off_kode,
-				-- FKG #2
-				regexp_replace(note, ',', ';', 'g'),
-				regexp_replace(link, ',', ';', 'g'),
-				vejkode,
-				tilstand_kode,
-				anlaegsaar,
-				udfoerer_entrep_kode,
-				kommunal_kontakt_kode,
-				-- FKG #3
-				arbejdssted,
-				regexp_replace(underelement_kode, ',', ';', 'g'),
-				-- Measurements
-				laengde,
-				bredde,
-				diameter,
-				hoejde,
-				-- Table specific
-				regexp_replace(slaegt, ',', ';', 'g'),
-				regexp_replace(art, ',', ';', 'g'),
-				regexp_replace(litra, ',', ';', 'g')
-			FROM greg.t_greg_punkter
-			WHERE EXTRACT (YEAR FROM systid_til) = $1 OR EXTRACT (YEAR FROM systid_fra) = $1 -- Where there has been some interaction during the year
+				string_agg(CASE
+								WHEN data_type = ANY(string_to_array((SELECT text_ FROM greg.variabel('data_type')), ','))
+								THEN 'regexp_replace(' || column_name || ', '','', '';'', ''g'')'
+								ELSE column_name
+							END, ',') AS columns
+			FROM column_names
+		),
+
+		raw AS ( -- Select rows as record where commas has been replaced with semi colon
+			SELECT
+				*
+			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_punkter', $1)
 		),
 
 		compare AS ( -- Select a column with the old values and the new values for an object that has been changed
@@ -722,8 +662,8 @@ $$
 			FROM (	SELECT
 						ROW_NUMBER() OVER() AS row, -- Each versions_id gets one row number for all its records
 						a.versions_id,
-						regexp_split_to_table(regexp_replace(ROW(a.*)::text, '[(|)|"]', '', 'g'), ',') AS old,
-						regexp_split_to_table(regexp_replace(ROW(b.*)::text, '[(|)|"]', '', 'g'), ',') AS new 
+						regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old,
+						regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new 
 					FROM raw a
 					LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
 					WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
@@ -880,8 +820,7 @@ $$;
 COMMENT ON FUNCTION greg.f_aendring_log_punkter(aar integer) IS 'Funktion til at generere en ændringslog for punkter indenfor et givent år. Format: yyyy.';
 
 -- f_aendring_log_omraader(aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_aendring_log_omraader(aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_aendring_log_omraader(aar integer);
 
 CREATE FUNCTION greg.f_aendring_log_omraader(aar integer)
 	RETURNS TABLE(
@@ -903,42 +842,26 @@ $$
 		column_names AS ( -- Select all column names as rows in a single column
 			SELECT
 				ordinal_position AS row,
-				column_name
+				column_name,
+				data_type
 			FROM information_schema.columns
 			WHERE table_schema = 'greg' AND table_name = 't_greg_omraader'
 		),
 
-		raw AS ( -- Select rows where commas has been replaced with semi colon
+		column_string AS ( -- Select all column names as one string where commas will be replace from relevant columns
 			SELECT
-				-- Automated values
-				versions_id,
-				objekt_id,
-				oprettet,
-				systid_fra,
-				systid_til,
-				bruger_id_start,
-				bruger_id_slut,
-				-- Geometry
-				geometri,
-				-- FKG #1
-				pg_distrikt_nr,
-				regexp_replace(pg_distrikt_tekst, ',', ';', 'g'),
-				pg_distrikt_type_kode,
-				-- FKG #2
-				regexp_replace(note, ',', ';', 'g'),
-				regexp_replace(link, ',', ';', 'g'),
-				vejkode,
-				regexp_replace(vejnr, ',', ';', 'g'),
-				postnr,
-				udfoerer_kode,
-				udfoerer_kontakt_kode1,
-				udfoerer_kontakt_kode2,
-				kommunal_kontakt_kode,
-				-- Table specific
-				aktiv,
-				synlig
-			FROM greg.t_greg_omraader
-			WHERE EXTRACT (YEAR FROM systid_til) = $1 OR EXTRACT (YEAR FROM systid_fra) = $1 -- Where there has been some interaction during the year
+				string_agg(CASE
+								WHEN data_type = ANY(string_to_array((SELECT text_ FROM greg.variabel('data_type')), ','))
+								THEN 'regexp_replace(' || column_name || ', '','', '';'', ''g'')'
+								ELSE column_name
+							END, ',') AS columns
+			FROM column_names
+		),
+
+		raw AS ( -- Select rows as record where commas has been replaced with semi colon
+			SELECT
+				*
+			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_omraader', $1)
 		),
 
 		compare AS ( -- Select a column with the old values and the new values for a object that has been changed
@@ -950,8 +873,8 @@ $$
 			FROM (	SELECT
 						ROW_NUMBER() OVER() AS row, -- Each versions_id gets one row number for all its records
 						a.versions_id,
-						regexp_split_to_table(regexp_replace(ROW(a.*)::text, '[(|)|"]', '', 'g'), ',') AS old,
-						regexp_split_to_table(regexp_replace(ROW(b.*)::text, '[(|)|"]', '', 'g'), ',') AS new 
+						regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old,
+						regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new 
 					FROM raw a
 					LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
 					WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
@@ -1074,8 +997,7 @@ $$;
 COMMENT ON FUNCTION greg.f_aendring_log_omraader(aar integer) IS 'Funktion til at generere en ændringslog for områder indenfor et givent år. Format: yyyy.';
 
 -- f_dato_flader(dag integer, maaned integer, aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_dato_flader(dag integer, maaned integer, aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_dato_flader(dag integer, maaned integer, aar integer);
 
 CREATE FUNCTION greg.f_dato_flader(dag integer, maaned integer, aar integer)
 	RETURNS TABLE(
@@ -1249,8 +1171,7 @@ $$;
 COMMENT ON FUNCTION greg.f_dato_flader(dag integer, maaned integer, aar integer) IS 'Funktion til simulering af registreringen på en bestemt dato. Format: dd-MM-yyyy.';
 
 -- f_dato_linier(dag integer, maaned integer, aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_dato_linier(dag integer, maaned integer, aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_dato_linier(dag integer, maaned integer, aar integer);
 
 CREATE FUNCTION greg.f_dato_linier(dag integer, maaned integer, aar integer)
 	RETURNS TABLE(
@@ -1422,8 +1343,7 @@ $$;
 COMMENT ON FUNCTION greg.f_dato_linier(dag integer, maaned integer, aar integer) IS 'Funktion til simulering af registreringen på en bestemt dato. Format: dd-MM-yyyy.';
 
 -- f_dato_punkter(dag integer, maaned integer, aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_dato_punkter(dag integer, maaned integer, aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_dato_punkter(dag integer, maaned integer, aar integer);
 
 CREATE FUNCTION greg.f_dato_punkter(dag integer, maaned integer, aar integer)
 	RETURNS TABLE(
@@ -1616,8 +1536,7 @@ $$;
 COMMENT ON FUNCTION greg.f_dato_punkter(dag integer, maaned integer, aar integer) IS 'Funktion til simulering af registreringen på en bestemt dato. Format: dd-MM-yyyy.';
 
 -- f_dato_omraader(dag integer, maaned integer, aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_dato_omraader(dag integer, maaned integer, aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_dato_omraader(dag integer, maaned integer, aar integer);
 
 CREATE FUNCTION greg.f_dato_omraader(dag integer, maaned integer, aar integer)
 	RETURNS TABLE(
@@ -1733,8 +1652,7 @@ $$;
 COMMENT ON FUNCTION greg.f_dato_omraader(dag integer, maaned integer, aar integer) IS 'Funktion til simulering af registreringen på en bestemt dato. Format: dd-MM-yyyy.';
 
 -- f_maengder(dag integer, maaned integer, aar integer)
-
-DROP FUNCTION IF EXISTS greg.f_maengder(dag integer, maaned integer, aar integer);
+-- DROP FUNCTION IF EXISTS greg.f_maengder(dag integer, maaned integer, aar integer);
 
 CREATE FUNCTION greg.f_maengder(dag integer, maaned integer, aar integer)
 	RETURNS TABLE(
@@ -2011,8 +1929,7 @@ $$;
 COMMENT ON FUNCTION greg.f_maengder(dag integer, maaned integer, aar integer) IS 'Funktion til simulering af mængdeoversigt på en bestemt dato. Format: dd-MM-yyyy.';
 
 -- f_tot_flader(dage integer)
-
-DROP FUNCTION IF EXISTS greg.f_tot_flader(dage integer);
+-- DROP FUNCTION IF EXISTS greg.f_tot_flader(dage integer);
 
 CREATE FUNCTION greg.f_tot_flader(dage integer)
 	RETURNS TABLE(
@@ -2091,8 +2008,7 @@ $$;
 COMMENT ON FUNCTION greg.f_tot_flader(dage integer) IS 'Ændringsoversigt med tilhørende geometri. Defineres indenfor x antal dage.';
 
 -- f_tot_linier(dage integer)
-
-DROP FUNCTION IF EXISTS greg.f_tot_linier(dage integer);
+-- DROP FUNCTION IF EXISTS greg.f_tot_linier(dage integer);
 
 CREATE FUNCTION greg.f_tot_linier(dage integer)
 	RETURNS TABLE(
@@ -2171,8 +2087,7 @@ $$;
 COMMENT ON FUNCTION greg.f_tot_linier(dage integer) IS 'Ændringsoversigt med tilhørende geometri. Defineres indenfor x antal dage.';
 
 -- f_tot_punkter(dage integer)
-
-DROP FUNCTION IF EXISTS greg.f_tot_punkter(dage integer);
+-- DROP FUNCTION IF EXISTS greg.f_tot_punkter(dage integer);
 
 CREATE FUNCTION greg.f_tot_punkter(dage integer)
 	RETURNS TABLE(
@@ -2252,8 +2167,7 @@ $$;
 COMMENT ON FUNCTION greg.f_tot_punkter(dage integer) IS 'Ændringsoversigt med tilhørende geometri. Defineres indenfor x antal dage.';
 
 -- f_tot_omraader(dage integer)
-
-DROP FUNCTION IF EXISTS greg.f_tot_omraader(dage integer);
+-- DROP FUNCTION IF EXISTS greg.f_tot_omraader(dage integer);
 
 CREATE FUNCTION greg.f_tot_omraader(dage integer)
 	RETURNS TABLE(
@@ -2324,9 +2238,33 @@ $$;
 
 COMMENT ON FUNCTION greg.f_tot_omraader(dage integer) IS 'Ændringsoversigt med tilhørende geometri. Defineres indenfor x antal dage.';
 
--- spec_calc(sql text, tabel text, versions_id uuid)
+-- select_columns(kolonner text, tabel text)
+-- DROP FUNCTION IF EXISTS greg.select_columns(kolonner text, tabel text, aar integer);
 
-DROP FUNCTION IF EXISTS greg.spec_calc(sql text, tabel text, versions_id_ uuid);
+CREATE FUNCTION greg.select_columns(kolonner text, tabel text, aar integer)
+	RETURNS TABLE (
+		versions_id uuid,
+		objekt_id uuid,
+		systid_fra timestamp with time zone,
+		systid_til timestamp with time zone,
+		_row text
+	)
+	LANGUAGE plpgsql AS
+$$
+
+	BEGIN
+
+		RETURN QUERY EXECUTE format(
+			'SELECT versions_id, objekt_id, systid_fra, systid_til, ROW(%s)::text AS _row FROM %s WHERE EXTRACT (YEAR FROM systid_til) = %s OR EXTRACT (YEAR FROM systid_fra) = %3$s', $1, $2, $3);
+
+	END
+
+$$;
+
+COMMENT ON FUNCTION greg.select_columns(kolonner text, tabel text, aar integer) IS 'Funktion, som samler alle kolonner til en record, dog med muligheden for at fjerne kommaer.';
+
+-- spec_calc(sql text, tabel text, versions_id uuid)
+-- DROP FUNCTION IF EXISTS greg.spec_calc(sql text, tabel text, versions_id_ uuid);
 
 CREATE FUNCTION greg.spec_calc(sql text, tabel text, version_id_ uuid)
 	RETURNS TABLE (
@@ -2348,8 +2286,7 @@ $$;
 COMMENT ON FUNCTION greg.spec_calc(sql text, tabel text, versions_id uuid) IS 'Funktion til udregning af dynamisk input i speciel kolonne fra e_basis_underelementer på rådata. Format: Input til udregning, tabel, versions_id';
 
 -- variabel(var text)
-
-DROP FUNCTION IF EXISTS greg.variabel(var text);
+-- DROP FUNCTION IF EXISTS greg.variabel(var text);
 
 CREATE FUNCTION greg.variabel(var text)
 	RETURNS TABLE (
@@ -2450,6 +2387,14 @@ $$
 					NULL::numeric,
 					NULL::text;
 
+		ELSIF $1 = 'data_type' THEN -- #Comment
+
+			RETURN QUERY 
+				SELECT 
+					NULL::integer,
+					NULL::numeric,
+					'text,character,character varying'::text; -- Comma seperated (No spaces)
+
 
 /*		Insert above this line for other variables
 		Copy until the line below
@@ -2475,8 +2420,7 @@ COMMENT ON FUNCTION greg.variabel(var text) IS 'Funktion til at fremkalde specif
 -- Functions in schema styles --
 
 -- hex_rgb(html text)
-
-DROP FUNCTION IF EXISTS styles.hex_rgb(text);
+-- DROP FUNCTION IF EXISTS styles.hex_rgb(text);
 
 CREATE FUNCTION styles.hex_rgb(text)
 	RETURNS TABLE (
@@ -2530,8 +2474,7 @@ $$;
 COMMENT ON FUNCTION styles.hex_rgb(text) IS 'Funktion til konvertering fra hexadecimaler til RGB. Funktionen tager udgangspunkt i input fra QGIS, hvor koden har et nummertegn (#) foran koden.';
 
 -- simple_style(niveau integer, kode text)
-
-DROP FUNCTION IF EXISTS styles.simple_style(niveau integer, kode text);
+-- DROP FUNCTION IF EXISTS styles.simple_style(niveau integer, kode text);
 
 CREATE FUNCTION styles.simple_style(niveau integer, kode text)
 	RETURNS TABLE (
@@ -2718,9 +2661,9 @@ $$
 						description = NEW.hovedelement_kode
 				WHERE stylename = OLD.hovedelement_kode;
 
-				RETURN NULL;
-
 			END IF;
+
+			RETURN NULL;
 
 		ELSIF (TG_OP = 'INSERT') THEN
 
@@ -3334,10 +3277,6 @@ $$
 				FROM basis.e_basis_hovedelementer
 			WHERE hovedelement_kode = OLD.hovedelement_kode;
 
-			DELETE
-				FROM styles.d_basis_element_lib
-			WHERE niveau = 1 AND kode = OLD.hovedelement_kode;
-
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'UPDATE') THEN
@@ -3356,21 +3295,16 @@ $$
 					-- Point
 					point_color = NEW.point_color,
 					name = NEW.name,
+					p_style = NEW.p_style,
 					-- Line
 					line_color = NEW.line_color,
 					line_style = NEW.line_style,
+					l_style = NEW.l_style,
 					-- Polygon
 					poly_color = NEW.poly_color,
-					style = NEW.style
+					style = NEW.style,
+					f_style = NEW.f_style
 			WHERE hovedelement_kode = OLD.hovedelement_kode;
-
-			IF OLD.hovedelement_kode != NEW.hovedelement_kode THEN -- If the code has changed
-
-				UPDATE styles.d_basis_element_lib a
-					SET kode = NEW.hovedelement_kode
-				WHERE a.niveau = 1 AND a.kode = OLD.hovedelement_kode;
-
-			END IF;
 
 		ELSIF (TG_OP = 'INSERT') THEN
 
@@ -3382,55 +3316,49 @@ $$
 					-- Point
 					NEW.point_color,
 					NEW.name,
+					NEW.p_style,
 					-- Line
 					NEW.line_color,
 					NEW.line_style,
+					NEW.l_style,
 					-- Polygon
 					NEW.poly_color,
-					NEW.style
-			);
-
-			INSERT INTO styles.d_basis_element_lib
-				VALUES (
-					1,
-					NEW.hovedelement_kode,
-					NULL,
-					NULL,
-					NULL
+					NEW.style,
+					NEW.f_style
 			);
 
 		END IF;
 
 		IF NEW.p_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_hovedelementer a
 				SET p_style = (SELECT
 									b.p_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.p_style_copy)
-			WHERE a.niveau = 1 AND a.kode = NEW.hovedelement_kode;
+			WHERE a.hovedelement_kode = NEW.hovedelement_kode;
 
 		END IF;
 
 		IF NEW.l_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_hovedelementer a
 				SET l_style = (SELECT
 									b.l_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.l_style_copy)
-			WHERE a.niveau = 1 AND a.kode = NEW.hovedelement_kode;
+			WHERE a.hovedelement_kode = NEW.hovedelement_kode;
 
 		END IF;
 
 		IF NEW.f_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_hovedelementer a
 				SET f_style = (SELECT
 									b.f_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.f_style_copy)
-			WHERE a.niveau = 1 AND a.kode = NEW.hovedelement_kode;
+			WHERE a.hovedelement_kode = NEW.hovedelement_kode;
 
 		END IF;
 
@@ -3463,10 +3391,6 @@ $$
 				FROM basis.e_basis_elementer
 			WHERE element_kode = OLD.element_kode;
 
-			DELETE
-				FROM styles.d_basis_element_lib
-			WHERE niveau = 2 AND kode = OLD.element_kode;
-
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'UPDATE') THEN
@@ -3486,21 +3410,16 @@ $$
 					-- Point
 					point_color = NEW.point_color,
 					name = NEW.name,
+					p_style = NEW.p_style,
 					-- Line
 					line_color = NEW.line_color,
 					line_style = NEW.line_style,
+					l_style = NEW.l_style,
 					-- Polygon
 					poly_color = NEW.poly_color,
-					style = NEW.style
+					style = NEW.style,
+					f_style = NEW.f_style
 			WHERE element_kode = OLD.element_kode;
-
-			IF OLD.element_kode != NEW.element_kode THEN -- If the code has changed
-
-				UPDATE styles.d_basis_element_lib a
-					SET kode = NEW.element_kode
-				WHERE a.niveau = 2 AND a.kode = OLD.element_kode;
-
-			END IF;
 
 		ELSIF (TG_OP = 'INSERT') THEN
 
@@ -3513,55 +3432,49 @@ $$
 					-- Point
 					NEW.point_color,
 					NEW.name,
+					NEW.p_style,
 					-- Line
 					NEW.line_color,
 					NEW.line_style,
+					NEW.l_style,
 					-- Polygon
 					NEW.poly_color,
-					NEW.style
-			);
-
-			INSERT INTO styles.d_basis_element_lib
-				VALUES (
-					2,
-					NEW.element_kode,
-					NULL,
-					NULL,
-					NULL
+					NEW.style,
+					NEW.f_style
 			);
 
 		END IF;
 
 		IF NEW.p_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_elementer a
 				SET p_style = (SELECT
 									b.p_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.p_style_copy)
-			WHERE a.niveau = 2 AND a.kode = NEW.element_kode;
+			WHERE a.element_kode = NEW.element_kode;
 
 		END IF;
 
 		IF NEW.l_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_elementer a
 				SET l_style = (SELECT
 									b.l_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.l_style_copy)
-			WHERE a.niveau = 2 AND a.kode = NEW.element_kode;
+			WHERE a.element_kode = NEW.element_kode;
 
 		END IF;
 
 		IF NEW.f_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_elementer a
 				SET f_style = (SELECT
 									b.f_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.f_style_copy)
-			WHERE a.niveau = 2 AND a.kode = NEW.element_kode;
+			WHERE a.element_kode = NEW.element_kode;
 
 		END IF;
 
@@ -3594,10 +3507,6 @@ $$
 				FROM basis.e_basis_underelementer
 			WHERE underelement_kode = OLD.underelement_kode;
 
-			DELETE
-				FROM styles.d_basis_element_lib
-			WHERE niveau = 3 AND kode = OLD.underelement_kode;
-
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'UPDATE') THEN
@@ -3626,21 +3535,16 @@ $$
 					-- Point
 					point_color = NEW.point_color,
 					name = NEW.name,
+					p_style = NEW.p_style,
 					-- Line
 					line_color = NEW.line_color,
 					line_style = NEW.line_style,
+					l_style = NEW.l_style,
 					-- Polygon
 					poly_color = NEW.poly_color,
-					style = NEW.style
+					style = NEW.style,
+					f_style = NEW.f_style
 			WHERE underelement_kode = OLD.underelement_kode;
-
-			IF OLD.underelement_kode != NEW.underelement_kode THEN -- If the code has changed
-
-				UPDATE styles.d_basis_element_lib a
-					SET kode = NEW.underelement_kode
-				WHERE a.niveau = 3 AND a.kode = OLD.underelement_kode;
-
-			END IF;
 
 		ELSIF (TG_OP = 'INSERT') THEN
 
@@ -3662,55 +3566,49 @@ $$
 					-- Point
 					NEW.point_color,
 					NEW.name,
+					NEW.p_style,
 					-- Line
 					NEW.line_color,
 					NEW.line_style,
+					NEW.l_style,
 					-- Polygon
 					NEW.poly_color,
-					NEW.style
-			);
-
-			INSERT INTO styles.d_basis_element_lib
-				VALUES (
-					3,
-					NEW.underelement_kode,
-					NULL,
-					NULL,
-					NULL
+					NEW.style,
+					NEW.f_style
 			);
 
 		END IF;
 
 		IF NEW.p_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_underelementer a
 				SET p_style = (SELECT
 									b.p_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.p_style_copy)
-			WHERE a.niveau = 3 AND a.kode = NEW.underelement_kode;
+			WHERE a.underelement_kode = NEW.underelement_kode;
 
 		END IF;
 
 		IF NEW.l_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_underelementer a
 				SET l_style = (SELECT
 									b.l_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.l_style_copy)
-			WHERE a.niveau = 3 AND a.kode = NEW.underelement_kode;
+			WHERE a.underelement_kode = NEW.underelement_kode;
 
 		END IF;
 
 		IF NEW.f_style_copy IS NOT NULL THEN -- Reuse already existing style
 
-			UPDATE styles.d_basis_element_lib a
+			UPDATE basis.e_basis_underelementer a
 				SET f_style = (SELECT
 									b.f_style
-								FROM styles.d_basis_element_lib b
+								FROM styles.v_basis_element_lib b
 								WHERE b.niveau || ' ' || b.kode = NEW.f_style_copy)
-			WHERE a.niveau = 3 AND a.kode = NEW.underelement_kode;
+			WHERE a.underelement_kode = NEW.underelement_kode;
 
 		END IF;
 
@@ -3783,6 +3681,12 @@ $$
 				NEW.statuskode = COALESCE(NEW.statuskode, (SELECT int_ FROM greg.variabel('status')));
 				NEW.off_kode = COALESCE(NEW.off_kode, (SELECT int_ FROM greg.variabel('off_')));
 				NEW.tilstand_kode = COALESCE(NEW.tilstand_kode, (SELECT int_ FROM greg.variabel('tilstand')));
+
+			ELSIF TG_TABLE_SCHEMA = 'greg' AND TG_TABLE_NAME = 't_greg_omraader' THEN -- Table specific: t_greg_omraader
+
+				-- DEFAULT values
+				NEW.aktiv = COALESCE(NEW.aktiv, 't');
+				NEW.synlig = COALESCE(NEW.synlig, 't');
 
 			END IF;
 
@@ -4133,33 +4037,6 @@ $$;
 
 COMMENT ON FUNCTION greg.t_greg_punkter_trg() IS 'Tilføjer DEAFULT VALUES, hvis ingen er angivet, da disse ikke angives automatisk via updateable views i QGIS.';
 
--- t_greg_omraader_trg()
-
-CREATE FUNCTION greg.t_greg_omraader_trg()
-	RETURNS trigger
-	LANGUAGE plpgsql AS
-$$
-
-	BEGIN
-
-			IF NEW.systid_til = current_timestamp THEN -- Ignored if triggered via an UPDATE- / DELETE-action (via AFTER-trigger)
-
-				RETURN NEW;
-
-			END IF;
-
-			-- Set DEFAULT table specific values (Updateable views)
-			NEW.aktiv = COALESCE(NEW.aktiv, 't');
-			NEW.synlig = COALESCE(NEW.synlig, 't');
-
-			RETURN NEW;
-
-	END
-
-$$;
-
-COMMENT ON FUNCTION greg.t_greg_omraader_trg() IS 'Generelle informationer ved INSERT/UPDATE/DELETE for at opretholde historik, samt universelle DEFAULT values.';
-
 -- t_greg_omraader_trg_a_iud()
 
 CREATE FUNCTION greg.t_greg_omraader_trg_a_iud()
@@ -4447,7 +4324,7 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION greg.t_greg_delomraader_trg() IS 'Indsætter UUID, retter geometri til ST_Multi og retter bruger_id, hvis ikke angivet.';
+COMMENT ON FUNCTION greg.t_greg_delomraader_trg() IS 'Indsætter UUID, retter geometri til ST_Multi.';
 
 -- v_greg_flader_trg()
 
@@ -4945,69 +4822,6 @@ $$;
 
 COMMENT ON FUNCTION styles.layer_styles_trg() IS 'Administrerer layer_styles.';
 
--- v_basis_element_lib_trg()
-
-CREATE FUNCTION styles.v_basis_element_lib_trg()
-	RETURNS trigger
-	LANGUAGE plpgsql AS
-$$
-
-	BEGIN
-
-		IF (TG_OP = 'DELETE') THEN
-
-			IF NOT EXISTS (SELECT '1' FROM styles.d_basis_element_lib WHERE niveau = OLD.niveau AND kode = OLD.kode) THEN -- Check if record still exists
-
-				RETURN NULL;
-
-			END IF;
-
-			DELETE
-				FROM styles.d_basis_element_lib
-			WHERE niveau = OLD.niveau AND kode = OLD.kode;
-
-			RETURN NULL;
-
-		ELSIF (TG_OP = 'UPDATE') THEN
-
-			IF NOT EXISTS (SELECT '1' FROM styles.d_basis_element_lib WHERE niveau = OLD.niveau AND kode = OLD.kode) THEN -- Check if record still exists
-
-				RETURN NULL;
-
-			END IF;
-
-			UPDATE styles.d_basis_element_lib
-				SET
-					niveau = NEW.niveau,
-					kode = NEW.kode,
-					p_style = NEW.p_style,
-					l_style = NEW.l_style,
-					f_style = NEW.f_style
-			WHERE niveau = OLD.niveau AND kode = OLD.kode;
-
-			RETURN NULL;
-
-		ELSIF (TG_OP = 'INSERT') THEN
-
-			INSERT INTO styles.d_basis_element_lib
-				VALUES (
-					NEW.niveau,
-					NEW.kode,
-					NEW.p_style,
-					NEW.l_style,
-					NEW.f_style
-			);
-
-			RETURN NULL;
-
-		END IF;
-
-	END
-
-$$;
-
-COMMENT ON FUNCTION styles.v_basis_element_lib_trg() IS 'Muligør opdatering af v_basis_element_lib.';
-
 -- v_layer_styles_trg()
 
 CREATE FUNCTION styles.v_layer_styles_trg()
@@ -5343,7 +5157,7 @@ CREATE TABLE basis.d_basis_bruger_id (
 	rolle character(1) NOT NULL,
 	aktiv boolean DEFAULT TRUE NOT NULL,
 	CONSTRAINT d_basis_bruger_id_pk PRIMARY KEY (bruger_id) WITH (fillfactor='10'),
-	CONSTRAINT d_basis_rolle_ck CHECK (rolle IN('a', 'w', 'r'))
+	CONSTRAINT d_basis_bruger_id_ck_rolle CHECK (rolle IN('a', 'w', 'r'))
 );
 
 COMMENT ON TABLE basis.d_basis_bruger_id IS 'Opslagstabel, bruger ID for elementet (FKG).';
@@ -5504,12 +5318,15 @@ CREATE TABLE basis.e_basis_hovedelementer (
 	-- Point
 	point_color text DEFAULT '#000000',
 	name text DEFAULT 'circle',
+	p_style text,
 	-- Line
 	line_color text DEFAULT '#000000',
 	line_style text DEFAULT 'solid',
+	l_style text,
 	-- Polygon
 	poly_color text DEFAULT '#000000',
 	style text DEFAULT 'solid',
+	f_style text,
 	CONSTRAINT e_basis_hovedelementer_pk PRIMARY KEY (hovedelement_kode) WITH (fillfactor='10'),
 	CONSTRAINT e_basis_hovedelementer_ck_name CHECK (name IN ('square', 'diamond', 'pentagon', 'hexagon', 'triangle', 'star', 'arrow', 'circle')),
 	CONSTRAINT e_basis_hovedelementer_ck_line_style CHECK (line_style IN ('solid', 'dash', 'dot', 'dash dot', 'dash dot dot')),
@@ -5529,18 +5346,21 @@ CREATE TABLE basis.e_basis_elementer (
 	-- Point
 	point_color text DEFAULT '#000000',
 	name text DEFAULT 'circle',
+	p_style text,
 	-- Line
 	line_color text DEFAULT '#000000',
 	line_style text DEFAULT 'solid',
+	l_style text,
 	-- Polygon
 	poly_color text DEFAULT '#000000',
 	style text DEFAULT 'solid',
+	f_style text,
 	CONSTRAINT e_basis_elementer_pk PRIMARY KEY (element_kode) WITH (fillfactor='10'),
 	CONSTRAINT e_basis_elementer_fk_e_basis_hovedelementer FOREIGN KEY (hovedelement_kode) REFERENCES basis.e_basis_hovedelementer(hovedelement_kode) MATCH FULL,
 	CONSTRAINT e_basis_elementer_ck_element_kode CHECK (element_kode ~* (hovedelement_kode || '-' || '[0-9]{2}')),
-	CONSTRAINT e_basis_elementer_ck_name CHECK (name IN ('square', 'diamond', 'pentagon', 'hexagon', 'triangle', 'equilateral_triangle', 'star', 'arrow', 'circle')),
+	CONSTRAINT e_basis_elementer_ck_name CHECK (name IN ('square', 'diamond', 'pentagon', 'hexagon', 'triangle', 'star', 'arrow', 'circle')),
 	CONSTRAINT e_basis_elementer_ck_line_style CHECK (line_style IN ('solid', 'dash', 'dot', 'dash dot', 'dash dot dot')),
-	CONSTRAINT e_basis_elementer_ck_style CHECK (style IN ('solid', 'no', 'horizontal', 'vertical', 'cross', 'b_diagonal', 'f_diagonal', 'diagonal_x', 'dense1', 'dense2', 'dense3', 'dense4', 'dense5', 'dense6', 'dense7'))
+	CONSTRAINT e_basis_elementer_ck_style CHECK (style IN ('solid', 'horizontal', 'vertical', 'cross', 'b_diagonal', 'f_diagonal', 'diagonal_x', 'dense1', 'dense2', 'dense3', 'dense4', 'dense5', 'dense6', 'dense7'))
 );
 
 COMMENT ON TABLE basis.e_basis_elementer IS 'Opslagstabel, den mere specifikke elementtype. Fx Faste belægninger, løse belægninger mv.';
@@ -5565,12 +5385,15 @@ CREATE TABLE basis.e_basis_underelementer (
 	-- Point
 	point_color text DEFAULT '#000000',
 	name text DEFAULT 'circle',
+	p_style text,
 	-- Line
 	line_color text DEFAULT '#000000',
 	line_style text DEFAULT 'solid',
+	l_style text,
 	-- Polygon
 	poly_color text DEFAULT '#000000',
 	style text DEFAULT 'solid',
+	f_style text,
 	-- Primary key
 	CONSTRAINT e_basis_underelementer_pk PRIMARY KEY (underelement_kode) WITH (fillfactor='10'),
 	-- Foreign keys
@@ -5592,9 +5415,9 @@ CREATE TABLE basis.e_basis_underelementer (
 	-- renhold
 	CONSTRAINT e_basis_underelementer_ck_renhold CHECK (renhold IS FALSE OR objekt_type ILIKE '%F%'), -- Element must be defined as a polygon for renhold to be true
 	-- Style Manager
-	CONSTRAINT e_basis_underelementer_ck_name CHECK (name IN ('square', 'diamond', 'pentagon', 'hexagon', 'triangle', 'equilateral_triangle', 'star', 'arrow', 'circle')),
+	CONSTRAINT e_basis_underelementer_ck_name CHECK (name IN ('square', 'diamond', 'pentagon', 'hexagon', 'triangle', 'star', 'arrow', 'circle')),
 	CONSTRAINT e_basis_underelementer_ck_line_style CHECK (line_style IN ('solid', 'dash', 'dot', 'dash dot', 'dash dot dot')),
-	CONSTRAINT e_basis_underelementer_ck_style CHECK (style IN ('solid', 'no', 'horizontal', 'vertical', 'cross', 'b_diagonal', 'f_diagonal', 'diagonal_x', 'dense1', 'dense2', 'dense3', 'dense4', 'dense5', 'dense6', 'dense7'))
+	CONSTRAINT e_basis_underelementer_ck_style CHECK (style IN ('solid', 'horizontal', 'vertical', 'cross', 'b_diagonal', 'f_diagonal', 'diagonal_x', 'dense1', 'dense2', 'dense3', 'dense4', 'dense5', 'dense6', 'dense7'))
 );
 
 COMMENT ON TABLE basis.e_basis_underelementer IS 'Opslagstabel, den helt specifikke elementtype. Fx beton, asfalt mv.';
@@ -5655,7 +5478,7 @@ CREATE TABLE greg.t_greg_flader (
 	CONSTRAINT t_greg_flader_fk_e_basis_underelementer FOREIGN KEY (underelement_kode) REFERENCES basis.e_basis_underelementer(underelement_kode) MATCH FULL,
 	-- Check constraints
 	CONSTRAINT t_greg_flader_ck_geometri CHECK (public.ST_IsValid(geometri) IS TRUE AND public.ST_IsEmpty(geometri) IS FALSE),
-	CONSTRAINT t_greg_flader_ck_hoejde CHECK (hoejde BETWEEN 0.00 AND 9.99),
+	CONSTRAINT t_greg_flader_ck_hoejde CHECK (hoejde BETWEEN 0.0 AND 9.9),
 	CONSTRAINT t_greg_flader_ck_klip_sider CHECK (klip_sider BETWEEN 0 AND 2)
 );
 
@@ -5714,8 +5537,8 @@ CREATE TABLE greg.t_greg_linier (
 	-- FKG #3
 	CONSTRAINT t_greg_linier_fk_e_basis_underelementer FOREIGN KEY (underelement_kode) REFERENCES basis.e_basis_underelementer(underelement_kode) MATCH FULL,
 	-- Check constraints
-	CONSTRAINT t_greg_linier_ck_valid CHECK (public.ST_IsValid(geometri) IS TRUE),
-	CONSTRAINT t_greg_linier_ck_maal CHECK (bredde BETWEEN 0.00 AND 9.99 AND hoejde BETWEEN 0.00 AND 9.99)
+	CONSTRAINT t_greg_linier_ck_geometri CHECK (public.ST_IsValid(geometri) IS TRUE AND public.ST_IsEmpty(geometri) IS FALSE),
+	CONSTRAINT t_greg_linier_ck_maal CHECK (bredde BETWEEN 0.0 AND 9.9 AND hoejde BETWEEN 0.00 AND 9.9)
 );
 
 COMMENT ON TABLE greg.t_greg_linier IS 'Rådatatabel for elementer defineret som linier. Indeholder både aktuel og historikdata.';
@@ -5777,8 +5600,8 @@ CREATE TABLE greg.t_greg_punkter (
 	-- FKG #3
 	CONSTRAINT t_greg_punkter_fk_e_basis_underelementer FOREIGN KEY (underelement_kode) REFERENCES basis.e_basis_underelementer(underelement_kode) MATCH FULL,
 	-- Check constraints
-	CONSTRAINT t_greg_punkter_ck_maal CHECK ((laengde = 0.00 AND bredde = 0.00 AND diameter >= 0.00) OR (laengde >= 0.00 AND bredde >= 0.00 AND diameter = 0.00)),
-	CONSTRAINT t_greg_punkter_ck_hoejde CHECK (hoejde >= 0.00)
+	CONSTRAINT t_greg_punkter_ck_geometri CHECK (public.ST_IsEmpty(geometri) IS FALSE),
+	CONSTRAINT t_greg_punkter_ck_maal CHECK (hoejde >= 0.0 AND ((laengde = 0.0 AND bredde = 0.0 AND diameter >= 0.0) OR (laengde >= 0.0 AND bredde >= 0.0 AND diameter = 0.0)))
 );
 
 COMMENT ON TABLE greg.t_greg_punkter IS 'Rådatatabel for elementer defineret som punkter. Indeholder både aktuel og historikdata.';
@@ -5848,19 +5671,6 @@ COMMENT ON TABLE greg.t_greg_delomraader IS 'Specifikke områdeopdelinger i tilf
 
 -- Tables in schema styles --
 
--- d_basis_element_lib
-
-CREATE TABLE styles.d_basis_element_lib (
-	niveau integer NOT NULL	,
-	kode text NOT NULL,
-	p_style text,
-	l_style text,
-	f_style text,
-	CONSTRAINT d_basis_element_lib_pk PRIMARY KEY (niveau, kode) WITH (fillfactor='10')
-);
-
-COMMENT ON TABLE styles.d_basis_element_lib IS 'Bibliotek over stilarter for elementer. Overskriver de simple stilarter i elementtabellerne.';
-
 -- d_hex_rgb
 
 CREATE TABLE styles.d_hex_rgb (
@@ -5871,16 +5681,6 @@ CREATE TABLE styles.d_hex_rgb (
 
 COMMENT ON TABLE styles.d_hex_rgb IS 'Konvertering af hexadecimaler til værdier for udregning af RGB-kode.';
 
--- d_not_categorized
-
-CREATE TABLE styles.d_not_categorized (
-	f_table_name text NOT NULL,
-	style text NOT NULL,
-	CONSTRAINT d_not_categorized_pk PRIMARY KEY (f_table_name) WITH (fillfactor='10')
-);
-
-COMMENT ON TABLE styles.d_not_categorized IS 'Stilart for ''Ikke klassificeret''.';
-
 -- d_tables
 
 CREATE TABLE styles.d_tables (
@@ -5890,6 +5690,17 @@ CREATE TABLE styles.d_tables (
 );
 
 COMMENT ON TABLE styles.d_tables IS 'Registreringstabellerne er deres geometritype for nem look-up.';
+
+-- d_not_categorized
+
+CREATE TABLE styles.d_not_categorized (
+	f_table_name text NOT NULL,
+	style text NOT NULL,
+	CONSTRAINT d_not_categorized_pk PRIMARY KEY (f_table_name) WITH (fillfactor='10'),
+	CONSTRAINT d_not_categorized_fk_d_tables FOREIGN KEY (f_table_name) REFERENCES styles.d_tables(f_table_name) MATCH FULL
+);
+
+COMMENT ON TABLE styles.d_not_categorized IS 'Stilart for ''Ikke klassificeret''.';
 
 -- layer_styles
 
@@ -6095,51 +5906,23 @@ SELECT
 	END AS objekt_type,
 	a.aktiv,
 	-- Point
-	CASE 
-		WHEN a.hovedelement_kode NOT IN(SELECT 
-										hovedelement_kode
-									FROM ebu
-									WHERE objekt_type ILIKE '%P%')
-		THEN NULL
-		WHEN d.p_style IS NOT NULL
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS p_style_ow,
 	a.point_color,
 	a.name,
+	a.p_style,
 	NULL::text AS p_style_copy,
 	-- Line
-	CASE 
-		WHEN a.hovedelement_kode NOT IN(SELECT 
-										hovedelement_kode
-									FROM ebu
-									WHERE objekt_type ILIKE '%L%')
-		THEN NULL
-		WHEN d.l_style IS NOT NULL
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS l_style_ow,
 	a.line_color,
 	a.line_style,
+	a.l_style,
 	NULL::text AS l_style_copy,
 	-- Polygon
-	CASE 
-		WHEN a.hovedelement_kode NOT IN(SELECT 
-										hovedelement_kode
-									FROM ebu
-									WHERE objekt_type ILIKE '%F%')
-		THEN NULL
-		WHEN d.f_style IS NOT NULL
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS f_style_ow,
 	a.poly_color,
 	a.style,
+	a.f_style,
 	NULL::text AS f_style_copy,
 	a.aktiv::text AS aktiv_text
 FROM basis.e_basis_hovedelementer a
-LEFT JOIN styles.d_basis_element_lib d ON a.hovedelement_kode = d.kode AND d.niveau = 1
-GROUP BY a.hovedelement_kode, a.hovedelement_tekst, p_style, a.point_color, a.name, d.l_style, a.line_color, a.line_style, d.f_style, a.poly_color, a.style
+-- GROUP BY a.hovedelement_kode, a.hovedelement_tekst, p_style, a.point_color, a.name, d.l_style, a.line_color, a.line_style, d.f_style, a.poly_color, a.style
 ORDER BY a.hovedelement_kode;
 
 COMMENT ON VIEW basis.v_basis_hovedelementer IS 'Opdaterbar view. Look-up for e_basis_hovedelementer.';
@@ -6179,53 +5962,25 @@ SELECT
 	END AS objekt_type,
 	a.aktiv,
 	-- Point
-	CASE
-		WHEN a.element_kode NOT IN(SELECT
-									element_kode
-								FROM basis.e_basis_underelementer
-								WHERE objekt_type ILIKE '%P%')
-		THEN NULL
-		WHEN p_style IS NOT NULL
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS p_style_ow,
 	a.point_color,
 	a.name,
+	a.p_style,
 	NULL::text AS p_style_copy,
 	-- Line
-	CASE
-		WHEN a.element_kode NOT IN(SELECT
-									element_kode
-								FROM basis.e_basis_underelementer
-								WHERE objekt_type ILIKE '%L%')
-		THEN NULL
-		WHEN l_style IS NOT NULL
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS l_style_ow,
 	a.line_color,
 	a.line_style,
+	a.l_style,
 	NULL::text AS l_style_copy,
 	-- Polygon
-	CASE
-		WHEN a.element_kode NOT IN(SELECT
-									element_kode
-								FROM basis.e_basis_underelementer
-								WHERE objekt_type ILIKE '%F%')
-		THEN NULL
-		WHEN f_style IS NOT NULL
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS f_style_ow,
 	a.poly_color,
 	a.style,
+	a.f_style,
 	NULL::text AS f_style_copy,
 	a.aktiv::text AS aktiv_text
 FROM basis.e_basis_elementer a
 LEFT JOIN basis.e_basis_hovedelementer c ON a.hovedelement_kode = c.hovedelement_kode
-LEFT JOIN styles.d_basis_element_lib d ON a.element_kode = d.kode AND d.niveau = 2
 WHERE c.aktiv IS TRUE
-GROUP BY a.element_kode, a.element_tekst, p_style, a.point_color, a.name, d.l_style, a.line_color, a.line_style, d.f_style, a.poly_color, a.style
+--GROUP BY a.element_kode, a.element_tekst, p_style, a.point_color, a.name, d.l_style, a.line_color, a.line_style, d.f_style, a.poly_color, a.style
 ORDER BY a.element_kode;
 
 COMMENT ON VIEW basis.v_basis_elementer IS 'Opdaterbar view. Look-up for e_basis_elementer.';
@@ -6250,43 +6005,24 @@ SELECT
 	a.udregn_geometri,
 	a.aktiv,
 	-- Point
-	CASE
-		WHEN a.objekt_type NOT ILIKE '%P%'
-		THEN NULL
-		WHEN d.p_style IS NOT NULL
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS p_style_ow,
 	a.point_color,
 	a.name,
+	a.p_style,
 	NULL::text AS p_style_copy,
 	-- Line
-	CASE
-		WHEN a.objekt_type NOT ILIKE '%L%'
-		THEN NULL
-		WHEN d.l_style IS NOT NULL
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS l_style_ow,
 	a.line_color,
 	a.line_style,
+	a.l_style,
 	NULL::text AS l_style_copy,
 	-- Polygon
-	CASE
-		WHEN a.objekt_type NOT ILIKE '%F%'
-		THEN NULL
-		WHEN d.f_style IS NOT NULL 
-		THEN 'Stilart overskrevet'
-		ELSE 'Stilart i brug'
-	END AS f_style_ow,
 	a.poly_color,
 	a.style,
+	a.f_style,
 	NULL::text AS f_style_copy,
 	a.aktiv::text AS aktiv_text
 FROM basis.e_basis_underelementer a
 LEFT JOIN basis.e_basis_elementer b ON a.element_kode = b.element_kode
 LEFT JOIN basis.e_basis_hovedelementer c ON b.hovedelement_kode = c.hovedelement_kode
-LEFT JOIN styles.d_basis_element_lib d ON a.underelement_kode = d.kode AND d.niveau = 3
 WHERE b.aktiv IS TRUE AND c.aktiv IS TRUE
 ORDER BY a.underelement_kode;
 
@@ -7460,47 +7196,100 @@ DROP VIEW IF EXISTS styles.v_basis_element_lib;
 
 CREATE VIEW styles.v_basis_element_lib AS
 
-WITH
-	un_ AS ( -- List all active elements in a single list
-		SELECT
-			1 AS niveau,
-			hovedelement_kode AS kode,
-			hovedelement_tekst AS tekst,
-			objekt_type
-		FROM basis.v_basis_hovedelementer
+WITH 
 
-		UNION ALL
-
-		SELECT
-			2 AS niveau,
-			element_kode AS kode,
-			element_tekst AS tekst,
-			objekt_type
-		FROM basis.v_basis_elementer
-
-		UNION ALL
-
-		SELECT
-			3 AS niveau,
-			underelement_kode AS kode,
-			underelement_tekst AS tekst,
-			objekt_type
-		FROM basis.v_basis_underelementer
+	ebu AS(
+		SELECT 
+			b.hovedelement_kode,
+			a.objekt_type
+		FROM basis.e_basis_underelementer a
+		LEFT JOIN basis.e_basis_elementer b ON a.element_kode = b.element_kode
 	)
 
 SELECT
-	a.niveau,
-	a.kode,
-	a.niveau || ' ' || a.kode AS niv_kode,
-	a.kode || ' ' || b.tekst AS look_up,
-	b.objekt_type,
+	1 AS niveau,
+	a.hovedelement_kode AS kode,
+	1 || ' ' || a.hovedelement_kode AS niv_kode,
+	a.hovedelement_kode || ' ' || a.hovedelement_tekst AS look_up,
+	CASE 
+		WHEN a.hovedelement_kode IN(SELECT 
+										hovedelement_kode
+									FROM ebu
+									WHERE objekt_type ILIKE '%F%')
+		THEN 'F'
+		ELSE ''
+	END ||
+	CASE 
+		WHEN a.hovedelement_kode IN(SELECT 
+										hovedelement_kode
+									FROM ebu
+									WHERE objekt_type ILIKE '%L%')
+		THEN 'L'
+		ELSE ''
+	END ||
+	CASE 
+		WHEN a.hovedelement_kode IN(SELECT 
+										hovedelement_kode
+									FROM ebu
+									WHERE objekt_type ILIKE '%P%')
+		THEN 'P'
+		ELSE ''
+	END AS objekt_type,
 	a.p_style,
 	a.l_style,
 	a.f_style
-FROM styles.d_basis_element_lib a
-LEFT JOIN un_ b ON a.niveau = b.niveau AND a.kode = b.kode
+FROM basis.e_basis_hovedelementer a
 
-ORDER BY a.kode, a.niveau;
+UNION ALL
+
+SELECT
+	2 AS niveau,
+	a.element_kode AS kode,
+	2 || ' ' || a.element_kode AS niv_kode,
+	a.element_kode || ' ' || a.element_tekst AS look_up,
+	CASE 
+		WHEN a.element_kode IN(SELECT
+									element_kode
+								FROM basis.e_basis_underelementer
+								WHERE objekt_type ILIKE '%F%')
+		THEN 'F'
+		ELSE ''
+	END ||
+	CASE 
+		WHEN a.element_kode IN(SELECT
+									element_kode
+								FROM basis.e_basis_underelementer
+								WHERE objekt_type ILIKE '%L%')
+		THEN 'L'
+		ELSE ''
+	END ||
+	CASE 
+		WHEN a.element_kode IN(SELECT
+									element_kode
+								FROM basis.e_basis_underelementer
+								WHERE objekt_type ILIKE '%P%')
+		THEN 'P'
+		ELSE ''
+	END AS objekt_type,
+	a.p_style,
+	a.l_style,
+	a.f_style
+FROM basis.e_basis_elementer a
+
+UNION ALL
+
+SELECT
+	3 AS niveau,
+	a.underelement_kode AS kode,
+	3 || ' ' || a.underelement_kode AS niv_kode,
+	a.underelement_kode || ' ' || a.underelement_tekst AS look_up,
+	a.objekt_type,
+	a.p_style,
+	a.l_style,
+	a.f_style
+FROM basis.e_basis_underelementer a
+
+ORDER BY kode, niveau;
 
 COMMENT ON VIEW styles.v_basis_element_lib IS 'Look-up til kopiering af eksistrerende stilarter.';
 
@@ -7707,7 +7496,7 @@ WITH
 				END AS body
 		FROM styles.d_tables a
 		LEFT JOIN styles.v_element_list b ON b.niveau = 2 AND EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type))
-		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
+		LEFT JOIN styles.v_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
 
 	categories_ AS( -- Select list of categories for styles
@@ -7846,7 +7635,7 @@ WITH
 					END AS body
 		FROM styles.d_tables a
 		LEFT JOIN union_ b ON EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type)) AND EXISTS(SELECT regexp_matches(b.op_objekt_type, a.geometry_type))
-		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
+		LEFT JOIN styles.v_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
 
 	categories_ AS (
@@ -7923,7 +7712,7 @@ WITH
 				END AS body
 		FROM styles.d_tables a
 		LEFT JOIN styles.v_element_list b ON b.niveau = 1 AND EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type))
-		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
+		LEFT JOIN styles.v_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
 
 	categories_ AS( -- Select list of categories for styles
@@ -7997,7 +7786,7 @@ WITH
 				END AS body
 		FROM styles.d_tables a
 		LEFT JOIN styles.v_element_list b ON b.niveau = 3 AND EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type))
-		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
+		LEFT JOIN styles.v_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
 
 	categories_ AS (
@@ -8013,7 +7802,7 @@ WITH
 		SELECT
 			f_table_name,
 			E'<renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">\n    <rules key="{' || (SELECT public.uuid_generate_v1()) || E'}">\n' || E'      <rule filter="&quot;arbejdssted&quot; = attribute(@atlas_feature, ''pg_distrikt_nr'') and distance ( $geometry,@atlas_geometry ) = 0" key="{b87d9f69-63bf-4698-8582-e69453b3d450}">\n' ||
-			string_agg(body, '') || E'   </rule>\n    </rules>\n' AS body
+			string_agg(body, '') || E'      </rule>\n    </rules>\n' AS body
 		FROM categories_
 		GROUP BY f_table_name
 	),
@@ -8028,7 +7817,7 @@ WITH
 
 SELECT
 	a.f_table_name,
-	b.body ||c.body AS body
+	b.body || c.body AS body
 FROM styles.d_tables a
 LEFT JOIN string_cat_ b ON a.f_table_name = b.f_table_name
 LEFT JOIN elements_ c ON a.f_table_name = c.f_table_name;
@@ -8071,7 +7860,7 @@ WITH
 				END AS body
 		FROM styles.d_tables a
 		LEFT JOIN styles.v_element_list_historik b ON b.niveau = 2 AND EXISTS(SELECT regexp_matches(b.objekt_type, a.geometry_type))
-		LEFT JOIN styles.d_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
+		LEFT JOIN styles.v_basis_element_lib c ON b.niveau = c.niveau AND b.kode = c.kode
 	),
 
 	categories_ AS( -- Select list of categories for styles
@@ -8442,8 +8231,6 @@ CREATE TRIGGER a_t_greg_omraader_geometri_trg_iu BEFORE INSERT OR UPDATE ON greg
 
 CREATE TRIGGER b_t_greg_omraader_generel_trg_iud BEFORE INSERT OR DELETE OR UPDATE ON greg.t_greg_omraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_generel_trg();
 
-CREATE TRIGGER c_t_greg_omraader_trg_i BEFORE INSERT ON greg.t_greg_omraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_omraader_trg();
-
 CREATE TRIGGER a_t_greg_omraader_trg_a_ud AFTER DELETE OR UPDATE ON greg.t_greg_omraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_historik_trg_a_ud();
 
 CREATE TRIGGER b_t_greg_omraader_trg_a_iud AFTER INSERT OR DELETE OR UPDATE ON greg.t_greg_omraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_omraader_trg_a_iud();
@@ -8457,10 +8244,6 @@ CREATE TRIGGER v_greg_omraader_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON 
 CREATE TRIGGER t_greg_delomraader_trg_iu BEFORE INSERT OR UPDATE ON greg.t_greg_delomraader FOR EACH ROW EXECUTE PROCEDURE greg.t_greg_delomraader_trg();
 
 -- Triggers in schema styles --
-
--- v_basis_element_lib
-
-CREATE TRIGGER v_basis_element_lib_trg INSTEAD OF INSERT OR DELETE OR UPDATE ON styles.v_basis_element_lib FOR EACH ROW EXECUTE PROCEDURE styles.v_basis_element_lib_trg();
 
 -- layer_styles
 
