@@ -1,10 +1,33 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis projectname="Grøn registrering" version="2.18.10">
+<qgis projectname="Grøn registrering" version="2.18.13">
   <title>Grøn registrering</title>
   <autotransaction active="0"/>
   <evaluateDefaultValues active="0"/>
   <layer-tree-group expanded="1" checked="Qt::PartiallyChecked" name="">
     <customproperties/>
+    <layer-tree-group expanded="0" checked="Qt::Unchecked" name="Ændringer">
+      <customproperties/>
+      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_aendring_omraader20170821125022874" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' srid=25832 type=MultiPolygon table=&quot;greg&quot;.&quot;v_aendring_omraader&quot; (geometri) sql=" name="Ændringer - Områder">
+        <customproperties>
+          <property key="expandedLegendNodes"/>
+        </customproperties>
+      </layer-tree-layer>
+      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_aendring_punkter20170721083452653" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' srid=25832 type=Point table=&quot;greg&quot;.&quot;v_aendring_punkter&quot; (geometri) sql=" name="Ændringer - Punkter">
+        <customproperties>
+          <property key="expandedLegendNodes"/>
+        </customproperties>
+      </layer-tree-layer>
+      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_aendring_linier20170721083452642" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' srid=25832 type=LineString table=&quot;greg&quot;.&quot;v_aendring_linier&quot; (geometri) sql=" name="Ændringer - Linier">
+        <customproperties>
+          <property key="expandedLegendNodes"/>
+        </customproperties>
+      </layer-tree-layer>
+      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_aendring_flader20170721083452628" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' srid=25832 type=Polygon table=&quot;greg&quot;.&quot;v_aendring_flader&quot; (geometri) sql=" name="Ændringer - Flader">
+        <customproperties>
+          <property key="expandedLegendNodes"/>
+        </customproperties>
+      </layer-tree-layer>
+    </layer-tree-group>
     <layer-tree-group expanded="0" checked="Qt::PartiallyChecked" name="Områder">
       <customproperties/>
       <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="v_greg_omraader20170721083345460" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' table=&quot;greg&quot;.&quot;v_greg_omraader&quot; (geometri) sql=" name="Områder">
@@ -18,6 +41,24 @@
         </customproperties>
       </layer-tree-layer>
       <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_atlas20170721083212150" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' table=&quot;greg&quot;.&quot;v_atlas&quot; (geometri) sql=" name="Atlas">
+        <customproperties>
+          <property key="expandedLegendNodes"/>
+        </customproperties>
+      </layer-tree-layer>
+    </layer-tree-group>
+    <layer-tree-group expanded="0" checked="Qt::Checked" name="ELEMENTER">
+      <customproperties/>
+      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="v_greg_punkter20170721083515574" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='versions_id' table=&quot;greg&quot;.&quot;v_greg_punkter&quot; (geometri) sql=" name="Punkter">
+        <customproperties>
+          <property key="expandedLegendNodes"/>
+        </customproperties>
+      </layer-tree-layer>
+      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="v_greg_linier20170721083514830" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='versions_id' table=&quot;greg&quot;.&quot;v_greg_linier&quot; (geometri) sql=" name="Linier">
+        <customproperties>
+          <property key="expandedLegendNodes"/>
+        </customproperties>
+      </layer-tree-layer>
+      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="v_greg_flader20170721083514174" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='versions_id' table=&quot;greg&quot;.&quot;v_greg_flader&quot; (geometri) sql=" name="Flader">
         <customproperties>
           <property key="expandedLegendNodes"/>
         </customproperties>
@@ -46,47 +87,6 @@
         </customproperties>
       </layer-tree-layer>
     </layer-tree-group>
-    <layer-tree-group expanded="0" checked="Qt::Unchecked" name="Ændringer">
-      <customproperties/>
-      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_aendring_omraader20170821125022874" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' srid=25832 type=MultiPolygon table=&quot;greg&quot;.&quot;v_aendring_omraader&quot; (geometri) sql=" name="Ændringer - Områder">
-        <customproperties>
-          <property key="expandedLegendNodes"/>
-        </customproperties>
-      </layer-tree-layer>
-      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_aendring_punkter20170721083452653" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' srid=25832 type=Point table=&quot;greg&quot;.&quot;v_aendring_punkter&quot; (geometri) sql=" name="Ændringer - Punkter">
-        <customproperties>
-          <property key="expandedLegendNodes"/>
-        </customproperties>
-      </layer-tree-layer>
-      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_aendring_linier20170721083452642" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' srid=25832 type=LineString table=&quot;greg&quot;.&quot;v_aendring_linier&quot; (geometri) sql=" name="Ændringer - Linier">
-        <customproperties>
-          <property key="expandedLegendNodes"/>
-        </customproperties>
-      </layer-tree-layer>
-      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="v_aendring_flader20170721083452628" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='objekt_id' srid=25832 type=Polygon table=&quot;greg&quot;.&quot;v_aendring_flader&quot; (geometri) sql=" name="Ændringer - Flader">
-        <customproperties>
-          <property key="expandedLegendNodes"/>
-        </customproperties>
-      </layer-tree-layer>
-    </layer-tree-group>
-    <layer-tree-group expanded="0" checked="Qt::Checked" name="ELEMENTER">
-      <customproperties/>
-      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="v_greg_punkter20170721083515574" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='versions_id' table=&quot;greg&quot;.&quot;v_greg_punkter&quot; (geometri) sql=" name="Punkter">
-        <customproperties>
-          <property key="expandedLegendNodes"/>
-        </customproperties>
-      </layer-tree-layer>
-      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="v_greg_linier20170721083514830" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='versions_id' table=&quot;greg&quot;.&quot;v_greg_linier&quot; (geometri) sql=" name="Linier">
-        <customproperties>
-          <property key="expandedLegendNodes"/>
-        </customproperties>
-      </layer-tree-layer>
-      <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="v_greg_flader20170721083514174" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='versions_id' table=&quot;greg&quot;.&quot;v_greg_flader&quot; (geometri) sql=" name="Flader">
-        <customproperties>
-          <property key="expandedLegendNodes"/>
-        </customproperties>
-      </layer-tree-layer>
-    </layer-tree-group>
     <layer-tree-group expanded="0" checked="Qt::PartiallyChecked" name="Grunddata">
       <customproperties/>
       <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Unchecked" id="matrikelskel20170721083533202" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='id' table=&quot;grunddata&quot;.&quot;matrikelskel&quot; (geom) sql=" name="Matrikelskel">
@@ -94,7 +94,7 @@
           <property key="expandedLegendNodes"/>
         </customproperties>
       </layer-tree-layer>
-      <layer-tree-group expanded="0" checked="Qt::Checked" name="Basiskort, GeoDanmark dæmpet">
+      <layer-tree-group expanded="0" checked="Qt::Checked" name="Basiskort, GeoDanmark">
         <customproperties/>
         <layer-tree-layer expanded="0" providerKey="postgres" checked="Qt::Checked" id="vejkant20170721083605092" source="dbname='groenreg' host=localhost port=5432 sslmode=disable key='id' table=&quot;grunddata&quot;.&quot;vejkant&quot; (geom) sql=" name="VEJKANT">
           <customproperties>
@@ -378,6 +378,28 @@
     </custom-order>
   </layer-tree-canvas>
   <legend updateDrawingOrder="true">
+    <legendgroup open="false" checked="Qt::Unchecked" name="Ændringer">
+      <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Ændringer - Områder" showFeatureCount="0">
+        <filegroup open="false" hidden="false">
+          <legendlayerfile isInOverview="0" layerid="v_aendring_omraader20170821125022874" visible="0"/>
+        </filegroup>
+      </legendlayer>
+      <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Ændringer - Punkter" showFeatureCount="0">
+        <filegroup open="false" hidden="false">
+          <legendlayerfile isInOverview="0" layerid="v_aendring_punkter20170721083452653" visible="0"/>
+        </filegroup>
+      </legendlayer>
+      <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Ændringer - Linier" showFeatureCount="0">
+        <filegroup open="false" hidden="false">
+          <legendlayerfile isInOverview="0" layerid="v_aendring_linier20170721083452642" visible="0"/>
+        </filegroup>
+      </legendlayer>
+      <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Ændringer - Flader" showFeatureCount="0">
+        <filegroup open="false" hidden="false">
+          <legendlayerfile isInOverview="0" layerid="v_aendring_flader20170721083452628" visible="0"/>
+        </filegroup>
+      </legendlayer>
+    </legendgroup>
     <legendgroup open="false" checked="Qt::PartiallyChecked" name="Områder">
       <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="Områder" showFeatureCount="0">
         <filegroup open="false" hidden="false">
@@ -392,6 +414,23 @@
       <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Atlas" showFeatureCount="0">
         <filegroup open="false" hidden="false">
           <legendlayerfile isInOverview="0" layerid="v_atlas20170721083212150" visible="0"/>
+        </filegroup>
+      </legendlayer>
+    </legendgroup>
+    <legendgroup open="false" checked="Qt::Checked" name="ELEMENTER">
+      <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="Punkter" showFeatureCount="0">
+        <filegroup open="false" hidden="false">
+          <legendlayerfile isInOverview="0" layerid="v_greg_punkter20170721083515574" visible="1"/>
+        </filegroup>
+      </legendlayer>
+      <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="Linier" showFeatureCount="0">
+        <filegroup open="false" hidden="false">
+          <legendlayerfile isInOverview="0" layerid="v_greg_linier20170721083514830" visible="1"/>
+        </filegroup>
+      </legendlayer>
+      <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="Flader" showFeatureCount="0">
+        <filegroup open="false" hidden="false">
+          <legendlayerfile isInOverview="0" layerid="v_greg_flader20170721083514174" visible="1"/>
         </filegroup>
       </legendlayer>
     </legendgroup>
@@ -417,52 +456,13 @@
         </filegroup>
       </legendlayer>
     </legendgroup>
-    <legendgroup open="false" checked="Qt::Unchecked" name="Ændringer">
-      <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Ændringer - Områder" showFeatureCount="0">
-        <filegroup open="false" hidden="false">
-          <legendlayerfile isInOverview="0" layerid="v_aendring_omraader20170821125022874" visible="0"/>
-        </filegroup>
-      </legendlayer>
-      <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Ændringer - Punkter" showFeatureCount="0">
-        <filegroup open="false" hidden="false">
-          <legendlayerfile isInOverview="0" layerid="v_aendring_punkter20170721083452653" visible="0"/>
-        </filegroup>
-      </legendlayer>
-      <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Ændringer - Linier" showFeatureCount="0">
-        <filegroup open="false" hidden="false">
-          <legendlayerfile isInOverview="0" layerid="v_aendring_linier20170721083452642" visible="0"/>
-        </filegroup>
-      </legendlayer>
-      <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Ændringer - Flader" showFeatureCount="0">
-        <filegroup open="false" hidden="false">
-          <legendlayerfile isInOverview="0" layerid="v_aendring_flader20170721083452628" visible="0"/>
-        </filegroup>
-      </legendlayer>
-    </legendgroup>
-    <legendgroup open="false" checked="Qt::Checked" name="ELEMENTER">
-      <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="Punkter" showFeatureCount="0">
-        <filegroup open="false" hidden="false">
-          <legendlayerfile isInOverview="0" layerid="v_greg_punkter20170721083515574" visible="1"/>
-        </filegroup>
-      </legendlayer>
-      <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="Linier" showFeatureCount="0">
-        <filegroup open="false" hidden="false">
-          <legendlayerfile isInOverview="0" layerid="v_greg_linier20170721083514830" visible="1"/>
-        </filegroup>
-      </legendlayer>
-      <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="Flader" showFeatureCount="0">
-        <filegroup open="false" hidden="false">
-          <legendlayerfile isInOverview="0" layerid="v_greg_flader20170721083514174" visible="1"/>
-        </filegroup>
-      </legendlayer>
-    </legendgroup>
     <legendgroup open="false" checked="Qt::PartiallyChecked" name="Grunddata">
       <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="Matrikelskel" showFeatureCount="0">
         <filegroup open="false" hidden="false">
           <legendlayerfile isInOverview="0" layerid="matrikelskel20170721083533202" visible="0"/>
         </filegroup>
       </legendlayer>
-      <legendgroup open="false" checked="Qt::Checked" name="Basiskort, GeoDanmark dæmpet">
+      <legendgroup open="false" checked="Qt::Checked" name="Basiskort, GeoDanmark">
         <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="VEJKANT" showFeatureCount="0">
           <filegroup open="false" hidden="false">
             <legendlayerfile isInOverview="0" layerid="vejkant20170721083605092" visible="1"/>
@@ -7084,8 +7084,8 @@ def my_form_open(dialog, layer, feature):
       <attributetableconfig actionWidgetStyle="dropDown" sortExpression="" sortOrder="0">
         <columns>
           <column width="-1" hidden="0" type="field" name="objekt_id"/>
-          <column width="325" hidden="0" type="field" name="pg_distrikt_nr"/>
-          <column width="150" hidden="0" type="field" name="delnavn"/>
+          <column width="100" hidden="0" type="field" name="pg_distrikt_nr"/>
+          <column width="325" hidden="0" type="field" name="delnavn"/>
           <column width="-1" hidden="1" type="actions"/>
         </columns>
       </attributetableconfig>
@@ -9295,7 +9295,7 @@ def my_form_open(dialog, layer, feature):
         <default field="pg_distrikt_type" expression=""/>
         <default field="aktiv" expression="'t'"/>
       </defaults>
-      <previewExpression> "pg_distrikt_type" </previewExpression>
+      <previewExpression> "pg_distrikt_type_kode" || ' ' || "pg_distrikt_type" </previewExpression>
     </maplayer>
     <maplayer minimumScale="0" maximumScale="1e+08" readOnly="1" geometry="No geometry" type="vector" hasScaleBasedVisibilityFlag="0">
       <id>v_basis_element_lib20170829164311418</id>
@@ -33024,17 +33024,29 @@ def my_form_open(dialog, layer, feature):
           <widgetv2config IsMultiline="0" fieldEditable="0" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
         </edittype>
       </edittypes>
-      <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">
+      <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="1">
         <rules key="{21f5be17-79b9-406d-a833-0bbc30197dde}">
-          <rule filter="&quot;aktiv&quot; = 't' AND &quot;synlig&quot; = 't'" key="{934dc554-98b3-4483-a85f-8e18dc62f7f5}" label="Aktiv">
-            <rule key="{7ebfc5a0-076e-4926-ac8d-303994cdc9c1}" symbol="0" scalemindenom="8000"/>
-            <rule scalemaxdenom="8000" key="{ea26b02f-52fd-419e-9fe5-f61860d89073}" symbol="1" scalemindenom="3500"/>
-            <rule scalemaxdenom="3500" key="{0c96dbbe-f33d-4e66-acf1-90dd0980ffe5}" symbol="2"/>
+          <rule filter="&quot;aktiv&quot; = 't'" key="{934dc554-98b3-4483-a85f-8e18dc62f7f5}" label="Aktiv">
+            <rule filter="&quot;synlig&quot; = 't'" key="{f2c18ecb-5f6f-4a97-8f12-371ebb66a444}" label="Synlig">
+              <rule key="{d0f68085-3d97-496b-8bc8-3aab3b51a6fa}" symbol="0" scalemindenom="8000"/>
+              <rule scalemaxdenom="8000" key="{bc81c430-6544-4328-b744-3ea6bbb5b4fe}" symbol="1" scalemindenom="3500"/>
+              <rule scalemaxdenom="3500" key="{ae94afbd-15fc-4826-bed6-8d8f80aa1bd0}" symbol="2"/>
+            </rule>
+            <rule filter="&quot;synlig&quot; = 'f'" key="{ef21a317-ea17-453b-8d3a-b5df25b1422f}" label="Ikke synlig">
+              <rule scalemaxdenom="8000" key="{afcf360a-4cdb-492e-b3c3-232c62fde2ce}" symbol="3" scalemindenom="3500"/>
+              <rule scalemaxdenom="3500" key="{b95e8434-e721-463b-858c-9bc57042fd07}" symbol="4"/>
+            </rule>
           </rule>
-          <rule filter="&quot;aktiv&quot; = 'f' AND &quot;synlig&quot; = 't'" key="{2b166621-1e39-4d6b-9dcf-995719dc4123}" label="Ikke Aktiv">
-            <rule key="{69dd9e3d-1c37-4d45-a1a1-9d7e2562eec3}" symbol="3" scalemindenom="8000"/>
-            <rule scalemaxdenom="8000" key="{c7adcd2a-371c-401d-ad9e-4d85c33ab0f2}" symbol="4" scalemindenom="3500"/>
-            <rule scalemaxdenom="3500" key="{bcc5b371-9090-4920-b6bc-7151509c5a97}" symbol="5"/>
+          <rule filter="&quot;aktiv&quot; = 'f'" key="{2b166621-1e39-4d6b-9dcf-995719dc4123}" label="Ikke Aktiv">
+            <rule filter="&quot;synlig&quot; = 't'" key="{c12d2f64-fa09-4c3c-afaa-b37d447e5e0a}" label="Synlig">
+              <rule key="{299e2359-cfcc-4ae0-8c52-8a4923197f42}" symbol="5" scalemindenom="8000"/>
+              <rule scalemaxdenom="8000" key="{89325c29-b53e-41ed-9a58-a9532ce4ba37}" symbol="6" scalemindenom="3500"/>
+              <rule scalemaxdenom="3500" key="{30dc8c65-e59f-479f-821c-ab55235b78a2}" symbol="7"/>
+            </rule>
+            <rule filter="&quot;synlig&quot; = 'f'" key="{bd239ee2-b9e4-4cfb-b039-d7b26ac3c338}" label="Ikke synlig">
+              <rule scalemaxdenom="8000" key="{d4b90069-f7a1-4a35-9f49-8aa3f4e23fa8}" symbol="8" scalemindenom="3500"/>
+              <rule scalemaxdenom="3500" key="{29949651-812f-4eec-9556-42fc0448010e}" symbol="9"/>
+            </rule>
           </rule>
         </rules>
         <symbols>
@@ -33112,6 +33124,62 @@ def my_form_open(dialog, layer, feature):
           <symbol alpha="1" clip_to_extent="1" type="fill" name="3">
             <layer pass="0" class="SimpleFill" locked="0">
               <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="0,0,255,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="255,255,255,255"/>
+              <prop k="outline_style" v="solid"/>
+              <prop k="outline_width" v="0.3"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="43,143,55,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="13,21,255,255"/>
+              <prop k="outline_style" v="dash"/>
+              <prop k="outline_width" v="0.3"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+          </symbol>
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="4">
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="0,0,255,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="255,255,255,255"/>
+              <prop k="outline_style" v="solid"/>
+              <prop k="outline_width" v="0.5"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="44,174,170,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="13,21,255,255"/>
+              <prop k="outline_style" v="dash"/>
+              <prop k="outline_width" v="0.5"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+          </symbol>
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="5">
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
               <prop k="color" v="245,134,126,255"/>
               <prop k="joinstyle" v="bevel"/>
               <prop k="offset" v="0,0"/>
@@ -33124,7 +33192,7 @@ def my_form_open(dialog, layer, feature):
               <prop k="style" v="solid"/>
             </layer>
           </symbol>
-          <symbol alpha="1" clip_to_extent="1" type="fill" name="4">
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="6">
             <layer pass="0" class="SimpleFill" locked="0">
               <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
               <prop k="color" v="0,0,255,255"/>
@@ -33152,7 +33220,63 @@ def my_form_open(dialog, layer, feature):
               <prop k="style" v="no"/>
             </layer>
           </symbol>
-          <symbol alpha="1" clip_to_extent="1" type="fill" name="5">
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="7">
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="0,0,255,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="255,255,255,255"/>
+              <prop k="outline_style" v="solid"/>
+              <prop k="outline_width" v="0.5"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="44,174,170,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="192,69,58,255"/>
+              <prop k="outline_style" v="dash"/>
+              <prop k="outline_width" v="0.5"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+          </symbol>
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="8">
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="0,0,255,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="255,255,255,255"/>
+              <prop k="outline_style" v="solid"/>
+              <prop k="outline_width" v="0.3"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="43,143,55,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="192,69,58,255"/>
+              <prop k="outline_style" v="dash"/>
+              <prop k="outline_width" v="0.3"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+          </symbol>
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="9">
             <layer pass="0" class="SimpleFill" locked="0">
               <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
               <prop k="color" v="0,0,255,255"/>
@@ -33181,6 +33305,9 @@ def my_form_open(dialog, layer, feature):
             </layer>
           </symbol>
         </symbols>
+        <orderby>
+          <orderByClause asc="0" nullsFirst="0">"aktiv"</orderByClause>
+        </orderby>
       </renderer-v2>
       <labeling type="simple"/>
       <customproperties>
@@ -33420,13 +33547,13 @@ def my_form_open(dialog, layer, feature):
           <column width="-1" hidden="0" type="field" name="objekt_id"/>
           <column width="120" hidden="0" type="field" name="oprettet"/>
           <column width="120" hidden="0" type="field" name="systid_fra"/>
-          <column width="150" hidden="0" type="field" name="bruger_id"/>
-          <column width="-1" hidden="1" type="field" name="bruger"/>
-          <column width="-1" hidden="0" type="field" name="pg_distrikt_nr"/>
+          <column width="150" hidden="1" type="field" name="bruger_id"/>
+          <column width="150" hidden="0" type="field" name="bruger"/>
+          <column width="100" hidden="0" type="field" name="pg_distrikt_nr"/>
           <column width="150" hidden="0" type="field" name="pg_distrikt_tekst"/>
           <column width="150" hidden="0" type="field" name="pg_distrikt_type_kode"/>
           <column width="-1" hidden="1" type="field" name="pg_distrikt_type"/>
-          <column width="-1" hidden="0" type="field" name="udfoerer_kode"/>
+          <column width="100" hidden="0" type="field" name="udfoerer_kode"/>
           <column width="-1" hidden="1" type="field" name="udfoerer"/>
           <column width="125" hidden="0" type="field" name="udfoerer_kontakt_kode1"/>
           <column width="-1" hidden="1" type="field" name="udfoerer_kontakt1"/>
@@ -33436,7 +33563,7 @@ def my_form_open(dialog, layer, feature):
           <column width="-1" hidden="1" type="field" name="kommunal_kontakt"/>
           <column width="150" hidden="0" type="field" name="vejkode"/>
           <column width="-1" hidden="1" type="field" name="vejnavn"/>
-          <column width="-1" hidden="0" type="field" name="vejnr"/>
+          <column width="100" hidden="0" type="field" name="vejnr"/>
           <column width="125" hidden="0" type="field" name="postnr"/>
           <column width="-1" hidden="1" type="field" name="distrikt"/>
           <column width="-1" hidden="0" type="field" name="note"/>
@@ -33677,15 +33804,27 @@ def my_form_open(dialog, layer, feature):
       </edittypes>
       <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">
         <rules key="{21f5be17-79b9-406d-a833-0bbc30197dde}">
-          <rule filter="&quot;aktiv&quot; = 't' AND &quot;synlig&quot; = 't'" key="{934dc554-98b3-4483-a85f-8e18dc62f7f5}" label="Aktiv">
-            <rule key="{7ebfc5a0-076e-4926-ac8d-303994cdc9c1}" symbol="0" scalemindenom="8000"/>
-            <rule scalemaxdenom="8000" key="{ea26b02f-52fd-419e-9fe5-f61860d89073}" symbol="1" scalemindenom="3500"/>
-            <rule scalemaxdenom="3500" key="{0c96dbbe-f33d-4e66-acf1-90dd0980ffe5}" symbol="2"/>
+          <rule filter="&quot;aktiv&quot; = 't'" key="{01851a01-c445-42f8-ba3b-e381dc48878a}" label="Aktiv">
+            <rule filter="&quot;synlig&quot; = 't'" key="{194aa7bf-9533-4e16-b277-23077cddc49e}" label="Synlig">
+              <rule key="{43263bd4-7d03-40cb-8e9d-d595677c10cb}" symbol="0" scalemindenom="8000"/>
+              <rule scalemaxdenom="8000" key="{dc33221e-5045-4386-beae-4bf8b1044c18}" symbol="1" scalemindenom="3500"/>
+              <rule scalemaxdenom="3500" key="{6cf41937-447a-45e0-9d6b-079232047f94}" symbol="2"/>
+            </rule>
+            <rule filter="&quot;synlig&quot; = 'f'" key="{a59fe619-8ba8-448b-8a80-8051182ab630}" label="Ikke synlig">
+              <rule scalemaxdenom="8000" key="{cbe66d60-7a3c-4a2e-b1e2-fc4abc273058}" symbol="3" scalemindenom="3500"/>
+              <rule scalemaxdenom="3500" key="{dc151ef1-7dce-42f9-9755-bce7a073bf8c}" symbol="4"/>
+            </rule>
           </rule>
-          <rule filter="&quot;aktiv&quot; = 'f' AND &quot;synlig&quot; = 't'" key="{2b166621-1e39-4d6b-9dcf-995719dc4123}" label="Ikke Aktiv">
-            <rule key="{69dd9e3d-1c37-4d45-a1a1-9d7e2562eec3}" symbol="3" scalemindenom="8000"/>
-            <rule scalemaxdenom="8000" key="{c7adcd2a-371c-401d-ad9e-4d85c33ab0f2}" symbol="4" scalemindenom="3500"/>
-            <rule scalemaxdenom="3500" key="{bcc5b371-9090-4920-b6bc-7151509c5a97}" symbol="5"/>
+          <rule filter="&quot;aktiv&quot; = 'f'" key="{9065b153-3a9f-40a3-89e2-af36f7df6210}" label="Ikke Aktiv">
+            <rule filter="&quot;synlig&quot; = 't'" key="{07023965-81e2-4a2c-b908-da02d03df0e9}" label="Synlig">
+              <rule key="{25d8b4c8-ed32-4c69-a6c9-6aa5f8036b6f}" symbol="5" scalemindenom="8000"/>
+              <rule scalemaxdenom="8000" key="{99f70b1a-690c-46f7-a22d-26125bcdb12b}" symbol="6" scalemindenom="3500"/>
+              <rule scalemaxdenom="3500" key="{f44b1dd3-231d-4765-bda0-69bb8e8287f8}" symbol="7"/>
+            </rule>
+            <rule filter="&quot;synlig&quot; = 'f'" key="{3ff4e99c-a139-4135-ab98-5c8c190797cf}" label="Ikke synlig">
+              <rule scalemaxdenom="8000" key="{eb309c65-1dd3-499b-99fb-637862f44f9b}" symbol="8" scalemindenom="3500"/>
+              <rule scalemaxdenom="3500" key="{e41e6d35-8eaa-44e2-9ce7-5b29311ec8fe}" symbol="9"/>
+            </rule>
           </rule>
         </rules>
         <symbols>
@@ -33763,6 +33902,62 @@ def my_form_open(dialog, layer, feature):
           <symbol alpha="1" clip_to_extent="1" type="fill" name="3">
             <layer pass="0" class="SimpleFill" locked="0">
               <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="0,0,255,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="255,255,255,255"/>
+              <prop k="outline_style" v="solid"/>
+              <prop k="outline_width" v="0.3"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="43,143,55,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="13,21,255,255"/>
+              <prop k="outline_style" v="dash"/>
+              <prop k="outline_width" v="0.3"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+          </symbol>
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="4">
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="0,0,255,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="255,255,255,255"/>
+              <prop k="outline_style" v="solid"/>
+              <prop k="outline_width" v="0.5"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="44,174,170,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="13,21,255,255"/>
+              <prop k="outline_style" v="dash"/>
+              <prop k="outline_width" v="0.5"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+          </symbol>
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="5">
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
               <prop k="color" v="245,134,126,255"/>
               <prop k="joinstyle" v="bevel"/>
               <prop k="offset" v="0,0"/>
@@ -33775,7 +33970,7 @@ def my_form_open(dialog, layer, feature):
               <prop k="style" v="solid"/>
             </layer>
           </symbol>
-          <symbol alpha="1" clip_to_extent="1" type="fill" name="4">
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="6">
             <layer pass="0" class="SimpleFill" locked="0">
               <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
               <prop k="color" v="0,0,255,255"/>
@@ -33803,7 +33998,63 @@ def my_form_open(dialog, layer, feature):
               <prop k="style" v="no"/>
             </layer>
           </symbol>
-          <symbol alpha="1" clip_to_extent="1" type="fill" name="5">
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="7">
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="0,0,255,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="255,255,255,255"/>
+              <prop k="outline_style" v="solid"/>
+              <prop k="outline_width" v="0.5"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="44,174,170,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="192,69,58,255"/>
+              <prop k="outline_style" v="dash"/>
+              <prop k="outline_width" v="0.5"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+          </symbol>
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="8">
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="0,0,255,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="255,255,255,255"/>
+              <prop k="outline_style" v="solid"/>
+              <prop k="outline_width" v="0.3"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+            <layer pass="0" class="SimpleFill" locked="0">
+              <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="color" v="43,143,55,255"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="offset" v="0,0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="outline_color" v="192,69,58,255"/>
+              <prop k="outline_style" v="dash"/>
+              <prop k="outline_width" v="0.3"/>
+              <prop k="outline_width_unit" v="MM"/>
+              <prop k="style" v="no"/>
+            </layer>
+          </symbol>
+          <symbol alpha="1" clip_to_extent="1" type="fill" name="9">
             <layer pass="0" class="SimpleFill" locked="0">
               <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
               <prop k="color" v="0,0,255,255"/>

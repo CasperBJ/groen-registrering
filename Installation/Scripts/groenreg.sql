@@ -1964,7 +1964,7 @@ $$
 				END AS arbejdssted,
 				a.underelement_kode || ' ' || ue.underelement_tekst AS underelement
 			FROM greg.t_greg_flader a
-			LEFT JOIN greg.t_greg_omraader om ON a.arbejdssted = om.pg_distrikt_nr AND om.systid_fra <= a.systid_fra
+			LEFT JOIN greg.t_greg_omraader om ON a.arbejdssted = om.pg_distrikt_nr AND om.systid_fra <= a.systid_fra AND om.systid_til IS NULL
 			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
 			WHERE current_date - a.systid_fra::date < $1 AND a.systid_til IS NULL
 		),
@@ -2043,7 +2043,7 @@ $$
 				END AS arbejdssted,
 				a.underelement_kode || ' ' || ue.underelement_tekst AS underelement
 			FROM greg.t_greg_linier a
-			LEFT JOIN greg.t_greg_omraader om ON a.arbejdssted = om.pg_distrikt_nr AND om.systid_fra <= a.systid_fra
+			LEFT JOIN greg.t_greg_omraader om ON a.arbejdssted = om.pg_distrikt_nr AND om.systid_fra <= a.systid_fra AND om.systid_til IS NULL
 			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
 			WHERE current_date - a.systid_fra::date < $1 AND a.systid_til IS NULL
 		),
@@ -2122,7 +2122,7 @@ $$
 				END AS arbejdssted,
 				a.underelement_kode || ' ' || ue.underelement_tekst AS underelement
 			FROM greg.t_greg_punkter a
-			LEFT JOIN greg.t_greg_omraader om ON a.arbejdssted = om.pg_distrikt_nr AND om.systid_fra <= a.systid_fra
+			LEFT JOIN greg.t_greg_omraader om ON a.arbejdssted = om.pg_distrikt_nr AND om.systid_fra <= a.systid_fra AND om.systid_til IS NULL
 			LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
 			WHERE current_date - a.systid_fra::date < $1 AND a.systid_til IS NULL
 		),
@@ -2321,7 +2321,7 @@ $$
 				SELECT 
 					NULL::integer,
 					NULL::numeric,
-					'postgres,cabje'::text; -- Comma seperated (No spaces)
+					'postgres'::text; -- Comma seperated (No spaces)
 
 		ELSIF $1 = 'num_days' THEN -- Number of days to register changes
 
@@ -2618,9 +2618,9 @@ $$
 	BEGIN
 
 		SELECT catalog_name FROM information_schema.information_schema_catalog_name INTO db;
-		login := db || '_' || OLD.bruger_id;
+		login := db || '/' || OLD.bruger_id;
 
-		IF EXISTS (SELECT '1' FROM pg_catalog.pg_roles WHERE rolname = current_user AND rolsuper IS TRUE) OR EXISTS (SELECT '1' FROM basis.d_basis_bruger_id WHERE db || '_' || bruger_id = current_user AND rolle ='a') OR EXISTS (SELECT '1' FROM basis.d_basis_bruger_id WHERE login = current_user) THEN
+		IF EXISTS (SELECT '1' FROM pg_catalog.pg_roles WHERE rolname = current_user AND rolsuper IS TRUE) OR EXISTS (SELECT '1' FROM basis.d_basis_bruger_id WHERE db || '/' || bruger_id = current_user AND rolle ='a') OR EXISTS (SELECT '1' FROM basis.d_basis_bruger_id WHERE login = current_user) THEN
 
 			RETURN NEW;
 
@@ -2632,7 +2632,7 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION basis.d_basis_bruger_id_trg() IS 'Tjekker tilladelse til at redigere i tabel';
+COMMENT ON FUNCTION basis.d_basis_bruger_id_trg() IS 'Tjekker tilladelse til at redigere i tabel.';
 
 -- e_basis_hovedelementer_trg_a_iud()
 
@@ -2781,7 +2781,7 @@ $$
 		IF (TG_OP = 'UPDATE') OR (TG_OP = 'INSERT') THEN
 
 			NEW.bruger_id = lower(NEW.bruger_id);
-			role := db || '_' || NEW.bruger_id;
+			role := db || '/' || NEW.bruger_id;
 
 			IF NEW.aktiv IS TRUE THEN -- If TRUE then user is able to login
 
@@ -2811,9 +2811,9 @@ $$
 				FROM basis.d_basis_bruger_id
 			WHERE bruger_id = OLD.bruger_id;
 
-			role := db || '_' || OLD.bruger_id;
+			role := db || '/' || OLD.bruger_id;
 
-			EXECUTE format('DROP ROLE IF EXISTS %s', role); -- Drop role
+			EXECUTE format('DROP ROLE IF EXISTS "%s"', role); -- Drop role
 
 			RETURN NULL;
 
@@ -2825,15 +2825,15 @@ $$
 
 			END IF;
 
-			IF NEW.bruger_id != OLD.bruger_id THEN
+			IF OLD.bruger_id = ANY(string_to_array((SELECT text_ FROM greg.variabel('users')), ',')) AND OLD.bruger_id <> current_user THEN
 
-				RAISE EXCEPTION 'Bruger ID kan ikke ændres. Hvis Bruger ID har været benyttet til registrering kan bruger gøres inaktiv ellers kan brugeren slettes og en ny oprettes';
+				RAISE EXCEPTION 'Brugeren "%" kan ikke ændres', OLD.bruger_id;
 
 			END IF;
 
-			IF OLD.bruger_id = ANY(string_to_array((SELECT text_ FROM greg.variabel('users')), ',')) THEN
+			IF NEW.bruger_id != OLD.bruger_id THEN
 
-				RAISE EXCEPTION 'Brugeren "%" kan ikke ændres', OLD.bruger_id;
+				RAISE EXCEPTION 'Bruger ID kan ikke ændres. Hvis Bruger ID har været benyttet til registrering kan bruger gøres inaktiv ellers kan brugeren slettes og en ny oprettes';
 
 			END IF;
 
@@ -2848,40 +2848,40 @@ $$
 
 				IF NEW.aktiv != OLD.aktiv THEN
 
-					EXECUTE format('ALTER ROLE %s %s', role, aktiv); -- Change whether or not user can login based on boolean value in table
+					EXECUTE format('ALTER ROLE "%s" %s', role, aktiv); -- Change whether or not user can login based on boolean value in table
 
 				END IF;
 
 				IF NEW.password IS NOT NULL THEN
 
-					EXECUTE format('ALTER ROLE %s WITH PASSWORD ''%s''', role, NEW.password); -- Change password if entered
+					EXECUTE format('ALTER ROLE "%s" WITH PASSWORD ''%s''', role, NEW.password); -- Change password if entered
 
 				END IF;
 
 				IF NEW.rolle != OLD.rolle THEN
 
-					EXECUTE format('REVOKE %s FROM %s', reader, role); -- Clear role membership
-					EXECUTE format('REVOKE %s FROM %s', writer, role); -- Clear role membership
-					EXECUTE format('REVOKE %s FROM %s', admin, role); -- Clear role membership
+					EXECUTE format('REVOKE %s FROM "%s"', reader, role); -- Clear role membership
+					EXECUTE format('REVOKE %s FROM "%s"', writer, role); -- Clear role membership
+					EXECUTE format('REVOKE %s FROM "%s"', admin, role); -- Clear role membership
 
 					IF OLD.rolle = 'a' THEN -- If user was admin, but no longer is
 
-						EXECUTE format('ALTER ROLE %s WITH NOCREATEROLE', role); -- Remove create role privileges
+						EXECUTE format('ALTER ROLE "%s" WITH NOCREATEROLE', role); -- Remove create role privileges
 
 					ELSIF NEW.rolle = 'a' THEN -- If user has been made admin
 
-						EXECUTE format('ALTER ROLE %s WITH CREATEROLE', role); -- Grant create role privileges
-						EXECUTE format('GRANT %s to %s', admin, role); -- Grant role membership
+						EXECUTE format('ALTER ROLE "%s" WITH CREATEROLE', role); -- Grant create role privileges
+						EXECUTE format('GRANT %s to "%s"', admin, role); -- Grant role membership
 
 					END IF;
 
 					IF NEW.rolle = 'r' THEN -- If user has been made reader
 
-						EXECUTE format('GRANT %s to %s', reader, role); -- Grant role membership
+						EXECUTE format('GRANT %s to "%s"', reader, role); -- Grant role membership
 
 					ELSIF NEW.rolle = 'w' THEN -- If user has been made writer
 
-						EXECUTE format('GRANT %s to %s', writer, role); -- Grant role membership
+						EXECUTE format('GRANT %s to "%s"', writer, role); -- Grant role membership
 
 					END IF;
 
@@ -2889,9 +2889,7 @@ $$
 
 				RETURN NULL;
 
-			END IF;
-
-			IF OLD.login = current_user THEN -- Changeable settings for the actual non-admin user
+			ELSIF OLD.login = current_user THEN -- Changeable settings for the actual non-admin user
 
 				UPDATE basis.d_basis_bruger_id
 					SET
@@ -2900,9 +2898,13 @@ $$
 
 				IF NEW.password IS NOT NULL THEN
 
-					EXECUTE format('ALTER ROLE %s WITH PASSWORD ''%s''', role, NEW.password); -- Change password if entered
+					EXECUTE format('ALTER ROLE "%s" WITH PASSWORD ''%s''', role, NEW.password); -- Change password if entered
 
 				END IF;
+
+			ELSE
+
+				RAISE EXCEPTION 'Du har ikke mulighed for at ændre på de pågældende indstillinger';
 
 			END IF;
 
@@ -2926,18 +2928,18 @@ $$
 
 			IF NEW.rolle = 'r' THEN -- If user is reader
 
-				EXECUTE format('CREATE ROLE %s %s PASSWORD ''%s'' NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION', role, aktiv, NEW.password); -- Create role
-				EXECUTE format('GRANT %s to %s', reader, role); -- Grant role membership
+				EXECUTE format('CREATE ROLE "%s" %s PASSWORD ''%s'' NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION', role, aktiv, NEW.password); -- Create role
+				EXECUTE format('GRANT %s to "%s"', reader, role); -- Grant role membership
 
 			ELSIF NEW.rolle = 'w' THEN -- If user is writer
 
-				EXECUTE format('CREATE ROLE %s %s PASSWORD ''%s'' NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION', role, aktiv, NEW.password); -- Create role
-				EXECUTE format('GRANT %s to %s', writer, role); -- Grant role membership
+				EXECUTE format('CREATE ROLE "%s" %s PASSWORD ''%s'' NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION', role, aktiv, NEW.password); -- Create role
+				EXECUTE format('GRANT %s to "%s"', writer, role); -- Grant role membership
 
 			ELSIF NEW.rolle = 'a' THEN -- If user is admin
 
-				EXECUTE format('CREATE ROLE %s %s PASSWORD ''%s'' NOSUPERUSER INHERIT NOCREATEDB CREATEROLE NOREPLICATION', role, aktiv, NEW.password); -- Create role with create role privileges
-				EXECUTE format('GRANT %s to %s', admin, role); -- Grant role membership
+				EXECUTE format('CREATE ROLE "%s" %s PASSWORD ''%s'' NOSUPERUSER INHERIT NOCREATEDB CREATEROLE NOREPLICATION', role, aktiv, NEW.password); -- Create role with create role privileges
+				EXECUTE format('GRANT %s to "%s"', admin, role); -- Grant role membership
 
 			END IF;
 
@@ -4044,6 +4046,10 @@ CREATE FUNCTION greg.t_greg_omraader_trg_a_iud()
 	LANGUAGE plpgsql AS
 $$
 
+	DECLARE
+	
+		geom_var public.geometry('MultiPolygon',25832);
+
 	BEGIN
 
 		IF (TG_OP = 'DELETE') THEN
@@ -4061,13 +4067,7 @@ $$
 											END
 										AND b.systid_til IS NULL
 									)
-			WHERE	CASE 
-						WHEN public.ST_Within(a.geometri, OLD.geometri) IS TRUE -- If the polygon was inside the boundary
-						THEN TRUE
-						WHEN ST_Area(public.ST_Intersection(a.geometri, OLD.geometri)) / ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg')) -- If the polygon was up to x % inside the boundary
-						THEN TRUE
-					END
-				AND a.systid_til IS NULL;
+			WHERE a.arbejdssted = OLD.pg_distrikt_nr AND a.systid_til IS NULL;
 
 			UPDATE greg.t_greg_linier a -- Update t_greg_linier
 				SET
@@ -4082,13 +4082,7 @@ $$
 											END
 										AND b.systid_til IS NULL
 									)
-			WHERE	CASE 
-						WHEN public.ST_Within(a.geometri, OLD.geometri) IS TRUE -- If the line was inside the boundary
-						THEN TRUE
-						WHEN ST_Length(public.ST_Intersection(a.geometri, OLD.geometri)) / ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg')) -- If the line was up to x % inside the boundary
-						THEN TRUE
-					END
-				AND a.systid_til IS NULL;
+			WHERE a.arbejdssted = OLD.pg_distrikt_nr AND a.systid_til IS NULL;
 
 			UPDATE greg.t_greg_punkter a -- Update t_greg_punkter
 				SET
@@ -4101,17 +4095,19 @@ $$
 											END
 										AND b.systid_til IS NULL
 									)
-			WHERE	CASE 
-						WHEN public.ST_Within(a.geometri, OLD.geometri) IS TRUE -- If the point was inside the new boundary
-						THEN TRUE
-					END
-				AND a.systid_til IS NULL;
+			WHERE a.arbejdssted = OLD.pg_distrikt_nr AND a.systid_til IS NULL;
 
 			RETURN NULL;
 
 		ELSIF (TG_OP = 'UPDATE') THEN
 
 			IF public.ST_EQUALS(NEW.geometri, OLD.geometri) IS FALSE OR OLD.pg_distrikt_nr != NEW.pg_distrikt_nr THEN -- If geometry has been changed
+
+				IF public.ST_EQUALS(NEW.geometri, OLD.geometri) IS FALSE THEN
+
+					SELECT public.ST_Multi(public.ST_SymDifference(NEW.geometri, OLD.geometri)) INTO geom_var;
+
+				END IF;
 
 				UPDATE greg.t_greg_flader a -- Update t_greg_flader
 					SET
@@ -4126,13 +4122,10 @@ $$
 												END
 											AND b.systid_til IS NULL
 										)
-				WHERE	CASE 
-							WHEN public.ST_Within(a.geometri, public.ST_Union(NEW.geometri, OLD.geometri)) IS TRUE -- If the polygon was inside the old boundary or is inside the new one
-							THEN TRUE
-							WHEN ST_Area(public.ST_Intersection(a.geometri, OLD.geometri)) / ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg')) -- If the polygon was up to x % inside the old boundary
-							THEN TRUE
-							WHEN ST_Area(public.ST_Intersection(a.geometri, NEW.geometri)) / ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg')) -- If the polygon is up to x % inside the new boundary
-							THEN TRUE
+				WHERE 	CASE
+							WHEN OLD.pg_distrikt_nr != NEW.pg_distrikt_nr IS TRUE
+							THEN a.arbejdssted = OLD.pg_distrikt_nr
+							ELSE (a.arbejdssted = NEW.pg_distrikt_nr OR a.arbejdssted IS NULL) AND public.ST_Intersects(a.geometri, geom_var) IS TRUE
 						END
 					AND a.systid_til IS NULL;
 
@@ -4149,13 +4142,10 @@ $$
 												END
 										AND b.systid_til IS NULL
 										)
-				WHERE	CASE 
-							WHEN public.ST_Within(a.geometri, public.ST_Union(NEW.geometri, OLD.geometri)) IS TRUE -- If the line was inside the old boundary or is inside the new one
-							THEN TRUE
-							WHEN ST_Length(public.ST_Intersection(a.geometri, OLD.geometri)) / ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg')) -- If the line was up to x % inside the old boundary
-							THEN TRUE
-							WHEN ST_Length(public.ST_Intersection(a.geometri, NEW.geometri)) / ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg')) -- If the line is up to x % inside the new boundary
-							THEN TRUE
+				WHERE 	CASE
+							WHEN OLD.pg_distrikt_nr != NEW.pg_distrikt_nr IS TRUE
+							THEN a.arbejdssted = OLD.pg_distrikt_nr
+							ELSE (a.arbejdssted = NEW.pg_distrikt_nr OR a.arbejdssted IS NULL) AND public.ST_Intersects(a.geometri, geom_var) IS TRUE
 						END
 					AND a.systid_til IS NULL;
 
@@ -4170,9 +4160,10 @@ $$
 												END
 											AND b.systid_til IS NULL
 										)
-				WHERE	CASE 
-							WHEN public.ST_Within(a.geometri, public.ST_Union(NEW.geometri, OLD.geometri)) IS TRUE -- If the point was inside the old boundary or is inside the new one
-							THEN TRUE
+				WHERE 	CASE
+							WHEN OLD.pg_distrikt_nr != NEW.pg_distrikt_nr IS TRUE
+							THEN a.arbejdssted = OLD.pg_distrikt_nr
+							ELSE (a.arbejdssted = NEW.pg_distrikt_nr OR a.arbejdssted IS NULL) AND public.ST_Intersects(a.geometri, geom_var) IS TRUE
 						END
 					AND a.systid_til IS NULL;
 
@@ -4201,13 +4192,7 @@ $$
 											END
 										AND b.systid_til IS NULL
 									)
-			WHERE	CASE 
-						WHEN public.ST_Within(a.geometri, NEW.geometri) IS TRUE -- If the polygon is inside the boundary
-						THEN TRUE
-						WHEN ST_Area(public.ST_Intersection(a.geometri, NEW.geometri)) / ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg')) -- If the polygon is up to x % inside the boundary
-						THEN TRUE
-					END
-				AND a.systid_til IS NULL;
+			WHERE a.arbejdssted IS NULL AND public.ST_Intersects(a.geometri, NEW.geometri) IS TRUE AND a.systid_til IS NULL;
 
 			UPDATE greg.t_greg_linier a -- Update t_greg_linier
 				SET
@@ -4222,13 +4207,7 @@ $$
 											END
 										AND b.systid_til IS NULL
 									)
-			WHERE	CASE 
-						WHEN public.ST_Within(a.geometri, NEW.geometri) IS TRUE -- If the line is inside the boundary
-						THEN TRUE
-						WHEN ST_Length(public.ST_Intersection(a.geometri, NEW.geometri)) / ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg')) -- If the line is up to x % inside the boundary
-						THEN TRUE
-					END
-				AND a.systid_til IS NULL;
+			WHERE a.arbejdssted IS NULL AND public.ST_Intersects(a.geometri, NEW.geometri) IS TRUE AND a.systid_til IS NULL;
 
 			UPDATE greg.t_greg_punkter a -- Update t_greg_punkter
 				SET
@@ -4241,11 +4220,7 @@ $$
 											END
 										AND b.systid_til IS NULL
 									)
-			WHERE	CASE 
-						WHEN public.ST_Within(a.geometri, NEW.geometri) IS TRUE -- If the point is inside the new boundary
-						THEN TRUE
-					END
-				AND a.systid_til IS NULL;
+			WHERE a.arbejdssted IS NULL AND public.ST_Intersects(a.geometri, NEW.geometri) IS TRUE AND a.systid_til IS NULL;
 
 			RETURN NULL;
 
@@ -5738,14 +5713,14 @@ SELECT
 		WHEN CASE
 				WHEN bruger_id = ANY(string_to_array((SELECT text_ FROM greg.variabel('users')), ','))
 				THEN bruger_id
-				ELSE (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_' || bruger_id
+				ELSE (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '/' || bruger_id
 			END = current_user
 		THEN 'Du er logget ind som:'
 		ELSE NULL
 	END AS aktiv_bruger,
 	CASE
 		WHEN bruger_id != ALL(string_to_array((SELECT text_ FROM greg.variabel('users')), ','))
-		THEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_'
+		THEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '/'
 		ELSE NULL::text
 	END AS prefix,
 	bruger_id,
@@ -5757,8 +5732,8 @@ SELECT
 				ELSE NULL::text
 			END
 		ELSE CASE
-				WHEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_' || bruger_id IN (SELECT rolname FROM pg_catalog.pg_roles)
-				THEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '_' || bruger_id
+				WHEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '/' || bruger_id IN (SELECT rolname FROM pg_catalog.pg_roles)
+				THEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '/' || bruger_id
 				ELSE NULL::text
 			END
 	END AS login,
