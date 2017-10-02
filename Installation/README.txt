@@ -2,7 +2,7 @@ Installation
 
 For nem installation trykkes på Installation.bat
 
-Skriv koden til superbrugeren postgres to gange. Første gang vil lave databasen groenreg og anden gang vil give adgang til en konsol i databasen.
+Skriv koden til superbrugeren postgres to gange. Første gang laver databasen groenreg og anden gang giver adgang til en konsol med adgang til databasen.
 
 Herefter skrives \ir install og databasen bliver lavet.
 
