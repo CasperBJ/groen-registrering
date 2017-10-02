@@ -3837,7 +3837,7 @@ $$
 									WHERE	CASE 
 												WHEN public.ST_Within(NEW.geometri, b.geometri) IS TRUE
 												THEN TRUE
-												WHEN ST_Area(public.ST_Intersection(NEW.geometri, b.geometri)) / ST_Area(NEW.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+												WHEN public.ST_Area(public.ST_Intersection(NEW.geometri, b.geometri)) / public.ST_Area(NEW.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 												THEN TRUE
 											END
 										AND b.systid_til IS NULL
@@ -3866,7 +3866,7 @@ $$
 									WHERE	CASE 
 												WHEN public.ST_Within(NEW.geometri, b.geometri) IS TRUE
 												THEN TRUE
-												WHEN ST_Area(public.ST_Intersection(NEW.geometri, b.geometri)) / ST_Area(NEW.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+												WHEN public.ST_Area(public.ST_Intersection(NEW.geometri, b.geometri)) / public.ST_Area(NEW.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 												THEN TRUE
 											END
 										AND b.systid_til IS NULL
@@ -3901,7 +3901,7 @@ $$
 									WHERE	CASE 
 												WHEN public.ST_Within(NEW.geometri, b.geometri) IS TRUE
 												THEN TRUE
-												WHEN ST_Length(public.ST_Intersection(NEW.geometri, b.geometri)) / ST_Length(NEW.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+												WHEN public.ST_Length(public.ST_Intersection(NEW.geometri, b.geometri)) / public.ST_Length(NEW.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 												THEN TRUE
 											END
 										AND b.systid_til IS NULL
@@ -3930,7 +3930,7 @@ $$
 									WHERE	CASE 
 												WHEN public.ST_Within(NEW.geometri, b.geometri) IS TRUE
 												THEN TRUE
-												WHEN ST_Length(public.ST_Intersection(NEW.geometri, b.geometri)) / ST_Length(NEW.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+												WHEN public.ST_Length(public.ST_Intersection(NEW.geometri, b.geometri)) / public.ST_Length(NEW.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 												THEN TRUE
 											END
 										AND b.systid_til IS NULL
@@ -4062,7 +4062,7 @@ $$
 									WHERE	CASE 
 												WHEN public.ST_Within(a.geometri, b.geometri) IS TRUE
 												THEN TRUE
-												WHEN ST_Area(public.ST_Intersection(a.geometri, b.geometri)) / ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+												WHEN public.ST_Area(public.ST_Intersection(a.geometri, b.geometri)) / public.ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 												THEN TRUE
 											END
 										AND b.systid_til IS NULL
@@ -4077,7 +4077,7 @@ $$
 									WHERE	CASE 
 												WHEN public.ST_Within(a.geometri, b.geometri) IS TRUE
 												THEN TRUE
-												WHEN ST_Length(public.ST_Intersection(a.geometri, b.geometri)) / ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+												WHEN public.ST_Length(public.ST_Intersection(a.geometri, b.geometri)) / public.ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 												THEN TRUE
 											END
 										AND b.systid_til IS NULL
@@ -4117,7 +4117,7 @@ $$
 										WHERE	CASE 
 													WHEN public.ST_Within(a.geometri, b.geometri) IS TRUE
 													THEN TRUE
-													WHEN ST_Area(public.ST_Intersection(a.geometri, b.geometri)) / ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+													WHEN public.ST_Area(public.ST_Intersection(a.geometri, b.geometri)) / public.ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 													THEN TRUE
 												END
 											AND b.systid_til IS NULL
@@ -4137,7 +4137,7 @@ $$
 										WHERE	CASE 
 													WHEN public.ST_Within(a.geometri, b.geometri) IS TRUE
 													THEN TRUE
-													WHEN ST_Length(public.ST_Intersection(a.geometri, b.geometri)) / ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+													WHEN public.ST_Length(public.ST_Intersection(a.geometri, b.geometri)) / public.ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 													THEN TRUE
 												END
 										AND b.systid_til IS NULL
@@ -4187,7 +4187,7 @@ $$
 									WHERE	CASE 
 												WHEN public.ST_Within(a.geometri, b.geometri) IS TRUE
 												THEN TRUE
-												WHEN ST_Area(public.ST_Intersection(a.geometri, b.geometri)) / ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+												WHEN public.ST_Area(public.ST_Intersection(a.geometri, b.geometri)) / public.ST_Area(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 												THEN TRUE
 											END
 										AND b.systid_til IS NULL
@@ -4202,7 +4202,7 @@ $$
 									WHERE	CASE 
 												WHEN public.ST_Within(a.geometri, b.geometri) IS TRUE
 												THEN TRUE
-												WHEN ST_Length(public.ST_Intersection(a.geometri, b.geometri)) / ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
+												WHEN public.ST_Length(public.ST_Intersection(a.geometri, b.geometri)) / public.ST_Length(a.geometri) >= (SELECT num_ FROM greg.variabel('omr_marg'))
 												THEN TRUE
 											END
 										AND b.systid_til IS NULL
@@ -4299,7 +4299,7 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION greg.t_greg_delomraader_trg() IS 'Indsætter UUID, retter geometri til ST_Multi.';
+COMMENT ON FUNCTION greg.t_greg_delomraader_trg() IS 'Indsætter UUID, retter geometri til multi-geometri.';
 
 -- v_greg_flader_trg()
 
