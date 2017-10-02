@@ -1,2 +1,3 @@
 \ir 'Scripts/groenreg.sql'
 \ir 'Scripts/INSERTS.sql'
+\ir 'Scripts/test_data.sql'
