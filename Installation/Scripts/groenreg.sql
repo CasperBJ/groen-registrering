@@ -3631,7 +3631,13 @@ CREATE FUNCTION greg.t_greg_generel_trg()
 	LANGUAGE plpgsql AS
 $$
 
+	DECLARE
+	
+		bruger text;
+
 	BEGIN
+
+		SELECT bruger_id FROM basis.v_basis_bruger_id WHERE login = current_user INTO bruger;
 
 		IF ((TG_OP = 'DELETE') OR (TG_OP = 'UPDATE')) AND OLD.systid_til IS NOT NULL THEN -- If record is a part of history
 
@@ -3651,7 +3657,7 @@ $$
 			NEW.oprettet = OLD.oprettet; -- Overwrites potential changes from user
 			NEW.systid_fra = current_timestamp; -- Timestamp
 			NEW.systid_til = NULL; -- Overwrites potential changes from user
-			NEW.bruger_id_start = current_user; -- User responsible
+			NEW.bruger_id_start = bruger; -- User responsible
 			NEW.bruger_id_slut = NULL; -- Overwrites potential changes from user
 			NEW.geometri = public.ST_Multi(NEW.geometri); -- Force geometry into multigeometry
 
@@ -3671,7 +3677,7 @@ $$
 			NEW.oprettet = current_timestamp; -- Timestamp
 			NEW.systid_fra = NEW.oprettet; -- Timestamp as oprettet
 			NEW.systid_til = NULL; -- Overwrites potential changes from user
-			NEW.bruger_id_start = current_user; -- User responsible
+			NEW.bruger_id_start = bruger; -- User responsible
 			NEW.bruger_id_slut = NULL; -- Overwrites potential changes from user
 			NEW.geometri = public.ST_Multi(NEW.geometri); -- Force geometry into multigeometry
 
@@ -3709,10 +3715,16 @@ CREATE FUNCTION greg.t_greg_historik_trg_a_ud()
 	LANGUAGE plpgsql AS
 $$
 
+	DECLARE
+	
+		bruger text;
+
 	BEGIN
 
+		SELECT bruger_id FROM basis.v_basis_bruger_id WHERE login = current_user INTO bruger;
+
 		OLD.systid_til = current_timestamp;
-		OLD.bruger_id_slut = current_user;
+		OLD.bruger_id_slut = bruger;
 		EXECUTE format('INSERT INTO %s SELECT $1.*', TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME)
 		USING OLD;
 
