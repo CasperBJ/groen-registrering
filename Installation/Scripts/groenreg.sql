@@ -225,31 +225,32 @@ $$
 			FROM column_names
 		),
 
+		row_string AS ( -- String aggregate of row numbers for columns
+			SELECT
+				string_agg(a.row::text, ',') AS col_order
+			FROM column_names a
+		),
+		
 		raw AS ( -- Select rows as record where commas has been replaced with semi colon
 			SELECT
 				*
-			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_flader', $1)
+			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_flader', $1) a
+			LEFT JOIN row_string b ON TRUE
 		),
 
 		compare AS ( -- Select a column with the old values and the new values for an object that has been changed
 			SELECT
-				ROW_NUMBER() OVER(PARTITION BY a.row) AS row, -- Each versions_id gets a row number for each of its record
+				regexp_split_to_table(a.col_order, ',') AS row,
 				a.versions_id,
-				a.old,
-				a.new
-			FROM (	SELECT
-						ROW_NUMBER() OVER() AS row, -- Each versions_id gets one row number for all its records
-						a.versions_id,
-						regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
-						regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
-					FROM raw a
-					LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
-					WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
-																		WHEN a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_flader WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_flader d WHERE a.objekt_id = d.objekt_id)
-																		THEN FALSE
-																		ELSE TRUE
-																	END -- If the object represent a deletion then FALSE
-			) a
+				regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
+				regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
+			FROM raw a
+			LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
+			WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
+																WHEN a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_flader WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_flader d WHERE a.objekt_id = d.objekt_id)
+																THEN FALSE
+																ELSE TRUE
+															END -- If the object represent a deletion then FALSE
 		),
 
 		change AS ( -- Select columns that has been changed for a given version_id 
@@ -257,7 +258,7 @@ $$
 				a.versions_id,
 				b.column_name
 			FROM compare a
-			LEFT JOIN column_names b ON a.row = b.row
+			LEFT JOIN column_names b ON a.row = b.row::text
 			WHERE a.old != a.new AND b.column_name NOT IN ('versions_id', 'systid_fra', 'systid_til', 'bruger_id_start', 'bruger_id_slut') -- These columns are not relevant to have in the change log. Columns objekt_id and oprettet are not removed. If they show up in change log, something is wrong!!
 		),
 
@@ -395,7 +396,7 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION greg.f_aendring_log_flader(aar integer) IS 'Funktion til at generere en ændringslog for flader indenfor et givent år. Format: yyyy.';
+COMMENT ON FUNCTION greg.f_aendring_log_flader(aar integer) IS 'Funktion til at generere en ændringslog for flader tabeller indenfor et givent år.';
 
 -- f_aendring_log_linier(aar integer)
 -- DROP FUNCTION IF EXISTS greg.f_aendring_log_linier(aar integer);
@@ -436,31 +437,32 @@ $$
 			FROM column_names
 		),
 
+		row_string AS ( -- String aggregate of row numbers for columns
+			SELECT
+				string_agg(a.row::text, ',') AS col_order
+			FROM column_names a
+		),
+		
 		raw AS ( -- Select rows as record where commas has been replaced with semi colon
 			SELECT
 				*
-			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_linier', $1)
+			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_linier', $1) a
+			LEFT JOIN row_string b ON TRUE
 		),
 
 		compare AS ( -- Select a column with the old values and the new values for an object that has been changed
 			SELECT
-				ROW_NUMBER() OVER(PARTITION BY a.row) AS row, -- Each versions_id gets a row number for each of its record
+				regexp_split_to_table(a.col_order, ',') AS row,
 				a.versions_id,
-				a.old,
-				a.new
-			FROM (	SELECT
-						ROW_NUMBER() OVER() AS row, -- Each versions_id gets one row number for all its records
-						a.versions_id,
-						regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
-						regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
-					FROM raw a
-					LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
-					WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
-																		WHEN a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_linier WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_linier d WHERE a.objekt_id = d.objekt_id)
-																		THEN FALSE
-																		ELSE TRUE
-																	END -- If the object represent a deletion then FALSE
-			) a
+				regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
+				regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
+			FROM raw a
+			LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
+			WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
+																WHEN a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_linier WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_linier d WHERE a.objekt_id = d.objekt_id)
+																THEN FALSE
+																ELSE TRUE
+															END -- If the object represent a deletion then FALSE
 		),
 
 		change AS ( -- Select columns that has been changed for a given version_id 
@@ -468,7 +470,7 @@ $$
 				a.versions_id,
 				b.column_name
 			FROM compare a
-			LEFT JOIN column_names b ON a.row = b.row
+			LEFT JOIN column_names b ON a.row = b.row::text
 			WHERE a.old != a.new AND b.column_name NOT IN ('versions_id', 'systid_fra', 'systid_til', 'bruger_id_start', 'bruger_id_slut') -- These columns are not relevant to have in the change log. Columns objekt_id and oprettet are not removed. If they show up in change log, something is wrong!!
 		),
 
@@ -563,10 +565,10 @@ $$
 				''::text AS aendringer
 			FROM greg.t_greg_linier a
 			LEFT JOIN greg.t_greg_omraader b ON a.arbejdssted = b.pg_distrikt_nr AND b.systid_fra < a.systid_til AND (a.systid_til <= b.systid_til OR b.systid_til IS NULL)
-			WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND a.objekt_id NOT IN(SELECT objekt_id FROM greg.t_greg_linier WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_linier d WHERE a.objekt_id = d.objekt_id)
+			WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_linier WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_linier d WHERE a.objekt_id = d.objekt_id)
 		),
 
-		union_ AS( -- Make union of all tgp tables
+		union_ AS( -- Make union of all tgl tables
 			SELECT
 				*
 			FROM tgl_insert
@@ -606,7 +608,7 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION greg.f_aendring_log_linier(aar integer) IS 'Funktion til at generere en ændringslog for linier indenfor et givent år. Format: yyyy.';
+COMMENT ON FUNCTION greg.f_aendring_log_linier(aar integer) IS 'Funktion til at generere en ændringslog for linier indenfor et givent år.';
 
 -- f_aendring_log_punkter(aar integer)
 -- DROP FUNCTION IF EXISTS greg.f_aendring_log_punkter(aar integer);
@@ -647,31 +649,32 @@ $$
 			FROM column_names
 		),
 
+		row_string AS ( -- String aggregate of row numbers for columns
+			SELECT
+				string_agg(a.row::text, ',') AS col_order
+			FROM column_names a
+		),
+		
 		raw AS ( -- Select rows as record where commas has been replaced with semi colon
 			SELECT
 				*
-			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_punkter', $1)
+			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_punkter', $1) a
+			LEFT JOIN row_string b ON TRUE
 		),
 
 		compare AS ( -- Select a column with the old values and the new values for an object that has been changed
 			SELECT
-				ROW_NUMBER() OVER(PARTITION BY a.row) AS row, -- Each versions_id gets a row number for each of its record
+				regexp_split_to_table(a.col_order, ',') AS row,
 				a.versions_id,
-				a.old,
-				a.new
-			FROM (	SELECT
-						ROW_NUMBER() OVER() AS row, -- Each versions_id gets one row number for all its records
-						a.versions_id,
-						regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old,
-						regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new 
-					FROM raw a
-					LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
-					WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
-																		WHEN a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_punkter WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_punkter d WHERE a.objekt_id = d.objekt_id)
-																		THEN FALSE
-																		ELSE TRUE
-																	END -- If the object represent a deletion then FALSE
-			) a
+				regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
+				regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
+			FROM raw a
+			LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
+			WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
+																WHEN a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_punkter WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_punkter d WHERE a.objekt_id = d.objekt_id)
+																THEN FALSE
+																ELSE TRUE
+															END -- If the object represent a deletion then FALSE
 		),
 
 		change AS ( -- Select columns that has been changed for a given version_id 
@@ -679,7 +682,7 @@ $$
 				a.versions_id,
 				b.column_name
 			FROM compare a
-			LEFT JOIN column_names b ON a.row = b.row
+			LEFT JOIN column_names b ON a.row = b.row::text
 			WHERE a.old != a.new AND b.column_name NOT IN ('versions_id', 'systid_fra', 'systid_til', 'bruger_id_start', 'bruger_id_slut') -- These columns are not relevant to have in the change log. Columns objekt_id and oprettet are not removed. If they show up in change log, something is wrong!!
 		),
 
@@ -774,7 +777,7 @@ $$
 				''::text AS aendringer
 			FROM greg.t_greg_punkter a
 			LEFT JOIN greg.t_greg_omraader b ON a.arbejdssted = b.pg_distrikt_nr AND b.systid_fra < a.systid_til AND (a.systid_til <= b.systid_til OR b.systid_til IS NULL)
-			WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND a.objekt_id NOT IN(SELECT objekt_id FROM greg.t_greg_punkter WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_punkter d WHERE a.objekt_id = d.objekt_id)
+			WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_punkter WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_punkter d WHERE a.objekt_id = d.objekt_id)
 		),
 
 		union_ AS( -- Make union of all tgp tables
@@ -817,7 +820,7 @@ $$
 
 $$;
 
-COMMENT ON FUNCTION greg.f_aendring_log_punkter(aar integer) IS 'Funktion til at generere en ændringslog for punkter indenfor et givent år. Format: yyyy.';
+COMMENT ON FUNCTION greg.f_aendring_log_punkter(aar integer) IS 'Funktion til at generere en ændringslog for punkter indenfor et givent år.';
 
 -- f_aendring_log_omraader(aar integer)
 -- DROP FUNCTION IF EXISTS greg.f_aendring_log_omraader(aar integer);
@@ -858,31 +861,32 @@ $$
 			FROM column_names
 		),
 
+		row_string AS ( -- String aggregate of row numbers for columns
+			SELECT
+				string_agg(a.row::text, ',') AS col_order
+			FROM column_names a
+		),
+
 		raw AS ( -- Select rows as record where commas has been replaced with semi colon
 			SELECT
 				*
-			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_omraader', $1)
+			FROM greg.select_columns((SELECT columns FROM column_string), 'greg.t_greg_omraader', $1) a
+			LEFT JOIN row_string b ON TRUE
 		),
 
-		compare AS ( -- Select a column with the old values and the new values for a object that has been changed
+		compare AS ( -- Select a column with the old values and the new values for an object that has been changed
 			SELECT
-				ROW_NUMBER() OVER(PARTITION BY a.row) AS row, -- Each versions_id gets a row number for each of its record
+				regexp_split_to_table(a.col_order, ',') AS row,
 				a.versions_id,
-				a.old,
-				a.new
-			FROM (	SELECT
-						ROW_NUMBER() OVER() AS row, -- Each versions_id gets one row number for all its records
-						a.versions_id,
-						regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old,
-						regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new 
-					FROM raw a
-					LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
-					WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
-																		WHEN a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_omraader WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_omraader d WHERE a.objekt_id = d.objekt_id)
-																		THEN FALSE
-																		ELSE TRUE
-																	END -- If the object represent a deletion then FALSE
-			) a
+				regexp_split_to_table(regexp_replace(a._row, '[(|)|"]', '', 'g'), ',') AS old, -- Split a record into individual records each representing the contents of one column in the original record
+				regexp_split_to_table(regexp_replace(b._row, '[(|)|"]', '', 'g'), ',') AS new -- Split a record into individual records each representing the contents of one column in the original record
+			FROM raw a
+			LEFT JOIN raw b ON a.objekt_id = b.objekt_id AND a.systid_til = b.systid_fra -- Join the old record with the one replacing it
+			WHERE EXTRACT (YEAR FROM a.systid_til) = $1 AND CASE
+																WHEN a.objekt_id NOT IN (SELECT objekt_id FROM greg.t_greg_flader WHERE systid_til IS NULL) AND a.systid_til = (SELECT MAX(systid_til) FROM greg.t_greg_flader d WHERE a.objekt_id = d.objekt_id)
+																THEN FALSE
+																ELSE TRUE
+															END -- If the object represent a deletion then FALSE
 		),
 
 		change AS ( -- Select columns that has been changed for a given version_id 
@@ -890,7 +894,7 @@ $$
 				a.versions_id,
 				b.column_name
 			FROM compare a
-			LEFT JOIN column_names b ON a.row = b.row
+			LEFT JOIN column_names b ON a.row = b.row::text
 			WHERE a.old != a.new AND b.column_name NOT IN ('versions_id', 'systid_fra', 'systid_til', 'bruger_id_start', 'bruger_id_slut') -- These columns are not relevant to have in the change log. Columns objekt_id and oprettet are not removed. If they show up in change log, something is wrong!!
 		),
 
@@ -2323,14 +2327,6 @@ $$
 					NULL::numeric,
 					'postgres'::text; -- Comma seperated (No spaces)
 
-		ELSIF $1 = 'num_days' THEN -- Number of days to register changes
-
-			RETURN QUERY 
-				SELECT 
-					14,
-					NULL::numeric,
-					NULL::text;
-
 		ELSIF $1 = 'picture' THEN -- Name (and path relative to project) of logo-file with extension included
 
 			RETURN QUERY 
@@ -2633,6 +2629,32 @@ $$
 $$;
 
 COMMENT ON FUNCTION basis.d_basis_bruger_id_trg() IS 'Tjekker tilladelse til at redigere i tabel.';
+
+-- d_basis_instance_trg()
+
+CREATE FUNCTION basis.d_basis_instance_trg()
+	RETURNS trigger
+	LANGUAGE plpgsql AS
+$$
+
+	DECLARE
+	
+		bruger text;
+
+	BEGIN
+
+		SELECT bruger_id FROM basis.v_basis_bruger_id WHERE login = current_user INTO bruger;
+		
+		NEW.bruger_id = bruger;
+		NEW.senest_benyttet = current_timestamp;
+		
+		RETURN NEW;
+
+	END
+
+$$;
+
+COMMENT ON FUNCTION basis.d_basis_instance_trg() IS 'Opdaterer seneste bruger, samt tidspunkt.';
 
 -- e_basis_hovedelementer_trg_a_iud()
 
@@ -2952,6 +2974,47 @@ $$
 $$;
 
 COMMENT ON FUNCTION basis.v_basis_bruger_id_trg() IS 'Muliggør opdatering gennem v_basis_bruger_id og opsætning af brugere i databasen.';
+
+-- v_basis_instance_trg()
+
+CREATE FUNCTION basis.v_basis_instance_trg()
+	RETURNS trigger
+	LANGUAGE plpgsql AS
+$$
+
+	BEGIN
+
+		IF (TG_OP = 'DELETE') THEN
+
+			RETURN NULL;
+
+		ELSIF (TG_OP = 'UPDATE') THEN
+
+			IF NOT EXISTS (SELECT '1' FROM basis.d_basis_instance WHERE instance = OLD.instance AND instance_nr = OLD.instance_nr) THEN -- Check if record still exists
+
+				RETURN NULL;
+
+			END IF;
+
+			UPDATE basis.d_basis_instance
+				SET
+					var_heltal = NEW.var_heltal,
+					var_dato = NEW.var_dato
+			WHERE instance = OLD.instance AND instance_nr = OLD.instance_nr;
+
+			RETURN NULL;
+
+		ELSIF (TG_OP = 'INSERT') THEN
+
+			RETURN NULL;
+
+		END IF;
+
+	END
+
+$$;
+
+COMMENT ON FUNCTION basis.v_basis_instance_trg() IS 'Muliggør alene opdateringer gennem v_basis_instance.';
 
 -- v_basis_kommunal_kontakt_trg()
 
@@ -4783,7 +4846,7 @@ $$
 
 		END IF;
 
-		IF NEW.stylename IN ('DEFAULT', 'HOVEDELEMENTER', 'ATLAS', 'HISTORIK') OR NEW.stylename IN (SELECT hovedelement_kode FROM basis.e_basis_hovedelementer) THEN
+		IF NEW.stylename IN ('DEFAULT', 'HOVEDELEMENTER', 'ATLAS') OR NEW.stylename IN (SELECT hovedelement_kode FROM basis.e_basis_hovedelementer) THEN
 
 			NEW.description = NEW.stylename;
 
@@ -5160,6 +5223,21 @@ CREATE TABLE basis.d_basis_distrikt_type (
 
 COMMENT ON TABLE basis.d_basis_distrikt_type IS 'Opslagstabel, områdetyper. Fx grønne områder, skoler mv. (FKG).';
 
+-- d_basis_instance
+
+CREATE TABLE basis.d_basis_instance (
+	instance text NOT NULL,
+	instance_nr integer NOT NULL,
+	var_heltal integer,
+	var_dato date,
+	bruger_id text,
+	senest_benyttet timestamp with time zone,
+	CONSTRAINT d_basis_instance_pk PRIMARY KEY (instance, instance_nr) WITH (fillfactor='10'),
+	CONSTRAINT d_basis_instance_ck_var CHECK (var_heltal IS NULL OR var_dato IS NULL)
+);
+
+COMMENT ON TABLE basis.d_basis_instance IS 'Instances for views.';
+
 -- d_basis_kommunal_kontakt
 
 CREATE TABLE basis.d_basis_kommunal_kontakt (
@@ -5273,8 +5351,7 @@ CREATE TABLE basis.d_basis_udfoerer_kontakt (
 	email character varying(50) NOT NULL,
 	aktiv boolean DEFAULT TRUE NOT NULL,
 	CONSTRAINT d_basis_udfoerer_kontakt_pk PRIMARY KEY (udfoerer_kontakt_kode) WITH (fillfactor='10'),
-	CONSTRAINT d_basis_udfoerer_kontakt_fk_d_basis_udfoerer FOREIGN KEY (udfoerer_kode) REFERENCES basis.d_basis_udfoerer(udfoerer_kode) MATCH FULL
-		ON UPDATE CASCADE,
+	CONSTRAINT d_basis_udfoerer_kontakt_fk_d_basis_udfoerer FOREIGN KEY (udfoerer_kode) REFERENCES basis.d_basis_udfoerer(udfoerer_kode) MATCH FULL,
 	CONSTRAINT d_basis_udfoerer_kontakt_ck_telefon CHECK (telefon ~* '[0-9]{8}')
 );
 
@@ -5758,6 +5835,22 @@ FROM basis.d_basis_bruger_id;
 
 COMMENT ON VIEW basis.v_basis_bruger_id IS 'Opdaterbar view. Look-up for d_basis_bruger_id.';
 
+-- v_basis_instance
+
+CREATE VIEW basis.v_basis_instance AS
+
+SELECT
+	a.instance,
+	a.instance_nr,
+	a.var_heltal,
+	a.var_dato,
+	a.bruger_id || ' (' || b.navn || ')' AS bruger,
+	a.senest_benyttet
+FROM basis.d_basis_instance a
+LEFT JOIN basis.d_basis_bruger_id b ON a.bruger_id = b.bruger_id;
+
+COMMENT ON VIEW basis.v_basis_instance IS 'Opdatérbar view. Kun opdateringer på d_basis_instance.';
+
 -- v_basis_kommunal_kontakt
 
 CREATE VIEW basis.v_basis_kommunal_kontakt AS
@@ -6017,72 +6110,136 @@ COMMENT ON VIEW basis.v_basis_underelementer IS 'Opdaterbar view. Look-up for e_
 
 -- Views in schema greg --
 
--- v_aendring_flader
+DO
 
-DROP VIEW IF EXISTS greg.v_aendring_flader;
+$$
 
-CREATE VIEW greg.v_aendring_flader AS
+DECLARE
 
-SELECT
-	objekt_id,
-	geometri::public.geometry('MultiPolygon', 25832) AS geometri,
-	handling,
-	dato,
-	arbejdssted,
-	underelement
-FROM greg.f_tot_flader((SELECT int_ FROM greg.variabel('num_days')));
+	i_ text;
+	i_nr integer;
+	
+BEGIN
 
-COMMENT ON VIEW greg.v_aendring_flader IS 'Ændringsoversigt med tilhørende geometri.';
+	FOR i_nr IN 1..1 LOOP
 
--- v_aendring_linier
+		i_ := 'Ændringer';
 
-DROP VIEW IF EXISTS greg.v_aendring_linier;
+		EXECUTE FORMAT ('
+			INSERT INTO basis.d_basis_instance VALUES (''%1$s'', %2$s, 14, NULL, NULL, NULL);', i_, i_nr
+		);
 
-CREATE VIEW greg.v_aendring_linier AS
+		-- v_aendring_flader
 
-SELECT
-	objekt_id,
-	geometri::public.geometry('MultiLineString', 25832) AS geometri,
-	handling,
-	dato,
-	arbejdssted,
-	underelement
-FROM greg.f_tot_linier((SELECT int_ FROM greg.variabel('num_days')));
+		EXECUTE FORMAT ('
+			DROP VIEW IF EXISTS greg.v_aendring_flader_%2$s;
 
-COMMENT ON VIEW greg.v_aendring_linier IS 'Ændringsoversigt med tilhørende geometri.';
+			CREATE VIEW greg.v_aendring_flader_%2$s AS
 
--- v_aendring_punkter
+			WITH
 
-DROP VIEW IF EXISTS greg.v_aendring_punkter;
+				subq AS (
+					SELECT 
+						var_heltal AS var
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
 
-CREATE VIEW greg.v_aendring_punkter AS
+			SELECT
+				objekt_id,
+				geometri::public.geometry(''MultiPolygon'', 25832) AS geometri,
+				handling,
+				dato,
+				arbejdssted,
+				underelement
+			FROM greg.f_tot_flader((SELECT var FROM subq));
 
-SELECT
-	objekt_id,
-	geometri::public.geometry('MultiPoint', 25832) AS geometri,
-	handling,
-	dato,
-	arbejdssted,
-	underelement
-FROM greg.f_tot_punkter((SELECT int_ FROM greg.variabel('num_days')));
+			COMMENT ON VIEW greg.v_aendring_flader_%2$s IS ''Ændringsoversigt med tilhørende geometri. Instance %2$s.'';', i_, i_nr
+		);
 
-COMMENT ON VIEW greg.v_aendring_punkter IS 'Ændringsoversigt med tilhørende geometri.';
+		-- v_aendring_linier
 
--- v_aendring_omraader
+		EXECUTE FORMAT ('
+			DROP VIEW IF EXISTS greg.v_aendring_linier_%2$s;
 
-DROP VIEW IF EXISTS greg.v_aendring_omraader;
+			CREATE VIEW greg.v_aendring_linier_%2$s AS
 
-CREATE VIEW greg.v_aendring_omraader AS
+			WITH
 
-SELECT
-	objekt_id,
-	geometri::public.geometry('MultiPolygon', 25832) AS geometri,
-	handling,
-	dato,
-	arbejdssted
-FROM greg.f_tot_omraader((SELECT int_ FROM greg.variabel('num_days')));
+				subq AS (
+					SELECT 
+						var_heltal AS var
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
 
-COMMENT ON VIEW greg.v_aendring_omraader IS 'Ændringsoversigt med tilhørende geometri.';
+			SELECT
+				objekt_id,
+				geometri::public.geometry(''MultiLineString'', 25832) AS geometri,
+				handling,
+				dato,
+				arbejdssted,
+				underelement
+			FROM greg.f_tot_linier((SELECT var FROM subq));
+
+			COMMENT ON VIEW greg.v_aendring_linier_%2$s IS ''Ændringsoversigt med tilhørende geometri. Instance %2$s.'';', i_, i_nr
+		);
+
+		-- v_aendring_punkter
+
+		EXECUTE FORMAT ('
+		DROP VIEW IF EXISTS greg.v_aendring_punkter_%2$s;
+
+		CREATE VIEW greg.v_aendring_punkter_%2$s AS
+
+			WITH
+
+				subq AS (
+					SELECT 
+						var_heltal AS var
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
+
+			SELECT
+				objekt_id,
+				geometri::public.geometry(''MultiPoint'', 25832) AS geometri,
+				handling,
+				dato,
+				arbejdssted,
+				underelement
+			FROM greg.f_tot_punkter((SELECT var FROM subq));
+
+			COMMENT ON VIEW greg.v_aendring_punkter_%2$s IS ''Ændringsoversigt med tilhørende geometri. Instance %2$s.'';', i_, i_nr
+		);
+
+		-- v_aendring_omraader
+
+		EXECUTE FORMAT ('
+		DROP VIEW IF EXISTS greg.v_aendring_omraader_%2$s;
+
+		CREATE VIEW greg.v_aendring_omraader_%2$s AS
+
+			WITH
+
+				subq AS (
+					SELECT 
+						var_heltal AS var
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
+
+			SELECT
+			objekt_id,
+			geometri::public.geometry(''MultiPolygon'', 25832) AS geometri,
+			handling,
+			dato,
+			arbejdssted
+		FROM greg.f_tot_omraader((SELECT var FROM subq));
+
+		COMMENT ON VIEW greg.v_aendring_omraader_%2$s IS ''Ændringsoversigt med tilhørende geometri. Instance %2$s.'';', i_, i_nr
+		);
+
+	END LOOP;
+END
+
+$$;
 
 -- v_atlas
 
@@ -6519,65 +6676,150 @@ ORDER BY a.pg_distrikt_nr;
 
 COMMENT ON VIEW greg.v_greg_omraader IS 'Opdatérbar view for greg.t_greg_omraader.';
 
--- v_greg_flader_historik
+DO
 
-DROP VIEW IF EXISTS greg.v_greg_flader_historik;
+$$
 
-CREATE VIEW greg.v_greg_flader_historik AS
+DECLARE
 
-SELECT
-	*
-FROM greg.f_dato_flader(01, 01, 2000);
+	i_ text;
+	i_nr integer;
+	
+BEGIN
 
-COMMENT ON VIEW greg.v_greg_flader_historik IS 'Simulering af historik.';
+	FOR i_nr IN 1..1 LOOP
 
--- v_greg_linier_historik
+		i_ := 'Historik';
 
-DROP VIEW IF EXISTS greg.v_greg_linier_historik;
+		EXECUTE FORMAT ('
+			INSERT INTO basis.d_basis_instance VALUES (''%1$s'', %2$s, NULL, ''2000-01-01'', NULL, NULL);', i_, i_nr
+		);
 
-CREATE VIEW greg.v_greg_linier_historik AS
+		-- v_greg_flader_historik
 
-SELECT
-	*
-FROM greg.f_dato_linier(01, 01, 2000);
+		EXECUTE FORMAT ('
+			DROP VIEW IF EXISTS greg.v_greg_flader_historik_%2$s;
+		
+			CREATE VIEW greg.v_greg_flader_historik_%2$s AS
 
-COMMENT ON VIEW greg.v_greg_linier_historik IS 'Simulering af historik.';
+			WITH
+	
+				subq AS (
+					SELECT 
+						EXTRACT (DAY FROM var_dato)::int AS dd,
+						EXTRACT (MONTH FROM var_dato)::int AS mm,
+						EXTRACT (YEAR FROM var_dato)::int AS yy
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
 
--- v_greg_punkter_historik
+			SELECT
+				*
+			FROM greg.f_dato_flader((SELECT dd FROM subq), (SELECT mm FROM subq), (SELECT yy FROM subq));
+		
+			COMMENT ON VIEW greg.v_greg_flader_historik_%2$s IS ''Simulering af historik. Instance %2$s.'';', i_, i_nr
+		);
 
-DROP VIEW IF EXISTS greg.v_greg_punkter_historik;
+		-- v_greg_linier_historik
 
-CREATE VIEW greg.v_greg_punkter_historik AS
+		EXECUTE FORMAT ('
+			DROP VIEW IF EXISTS greg.v_greg_linier_historik_%2$s;
+		
+			CREATE VIEW greg.v_greg_linier_historik_%2$s AS
 
-SELECT
-	*
-FROM greg.f_dato_punkter(01, 01, 2000);
+			WITH
+	
+				subq AS (
+					SELECT 
+						EXTRACT (DAY FROM var_dato)::int AS dd,
+						EXTRACT (MONTH FROM var_dato)::int AS mm,
+						EXTRACT (YEAR FROM var_dato)::int AS yy
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
 
-COMMENT ON VIEW greg.v_greg_punkter_historik IS 'Simulering af historik.';
+			SELECT
+				*
+			FROM greg.f_dato_linier((SELECT dd FROM subq), (SELECT mm FROM subq), (SELECT yy FROM subq));
+		
+			COMMENT ON VIEW greg.v_greg_linier_historik_%2$s IS ''Simulering af historik. Instance %2$s.'';', i_, i_nr
+		);
 
--- v_greg_omraader_historik
+		-- v_greg_punkter_historik
 
-DROP VIEW IF EXISTS greg.v_greg_omraader_historik;
+		EXECUTE FORMAT ('
+			DROP VIEW IF EXISTS greg.v_greg_punkter_historik_%2$s;
+		
+			CREATE VIEW greg.v_greg_punkter_historik_%2$s AS
 
-CREATE VIEW greg.v_greg_omraader_historik AS
+			WITH
+	
+				subq AS (
+					SELECT 
+						EXTRACT (DAY FROM var_dato)::int AS dd,
+						EXTRACT (MONTH FROM var_dato)::int AS mm,
+						EXTRACT (YEAR FROM var_dato)::int AS yy
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
 
-SELECT
-	*
-FROM greg.f_dato_omraader(01, 01, 2000);
+			SELECT
+				*
+			FROM greg.f_dato_punkter((SELECT dd FROM subq), (SELECT mm FROM subq), (SELECT yy FROM subq));
+		
+			COMMENT ON VIEW greg.v_greg_punkter_historik_%2$s IS ''Simulering af historik. Instance %2$s.'';', i_, i_nr
+		);
 
-COMMENT ON VIEW greg.v_greg_omraader_historik IS 'Simulering af historik.';
+		-- v_greg_omraader_historik
 
--- v_maengder_historik
+		EXECUTE FORMAT ('
+			DROP VIEW IF EXISTS greg.v_greg_omraader_historik_%2$s;
+		
+			CREATE VIEW greg.v_greg_omraader_historik_%2$s AS
 
-DROP VIEW IF EXISTS greg.v_maengder_historik;
+			WITH
+	
+				subq AS (
+					SELECT 
+						EXTRACT (DAY FROM var_dato)::int AS dd,
+						EXTRACT (MONTH FROM var_dato)::int AS mm,
+						EXTRACT (YEAR FROM var_dato)::int AS yy
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
 
-CREATE VIEW greg.v_maengder_historik AS
+			SELECT
+				*
+			FROM greg.f_dato_omraader((SELECT dd FROM subq), (SELECT mm FROM subq), (SELECT yy FROM subq));
+		
+			COMMENT ON VIEW greg.v_greg_omraader_historik_%2$s IS ''Simulering af historik. Instance %2$s.'';', i_, i_nr
+		);
 
-SELECT
-	*
-FROM greg.f_maengder(01, 01, 2000);
+		-- v_maengder_historik
 
-COMMENT ON VIEW greg.v_maengder_historik IS 'Simulering af historik. Benyttes i Historik_Mængdeoversigt.xlsx';
+		EXECUTE FORMAT ('
+			DROP VIEW IF EXISTS greg.v_maengder_historik_%2$s;
+		
+			CREATE VIEW greg.v_maengder_historik_%2$s AS
+
+			WITH
+	
+				subq AS (
+					SELECT 
+						EXTRACT (DAY FROM var_dato)::int AS dd,
+						EXTRACT (MONTH FROM var_dato)::int AS mm,
+						EXTRACT (YEAR FROM var_dato)::int AS yy
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
+
+			SELECT
+				*
+			FROM greg.f_maengder((SELECT dd FROM subq), (SELECT mm FROM subq), (SELECT yy FROM subq));
+		
+			COMMENT ON VIEW greg.v_maengder_historik_%2$s IS ''Simulering af historik. Instance %2$s.. Benyttes i Historik_Mængdeoversigt_%2$s'';', i_, i_nr
+		);
+	
+	END LOOP;
+	
+END
+
+$$;
 
 -- v_log
 
@@ -6591,17 +6833,52 @@ FROM greg.f_aendring_log (EXTRACT (YEAR FROM current_date)::integer);
 
 COMMENT ON VIEW greg.v_log IS 'Ændringslog, som registrerer alle handlinger indenfor et gældende år. Benyttes i Ændringslog.xlsx';
 
--- v_log_historik
+DO
 
-DROP VIEW IF EXISTS greg.v_log_historik;
+$$
 
-CREATE VIEW greg.v_log_historik AS
+DECLARE
 
-SELECT
-	*
-FROM greg.f_aendring_log (2000);
+	i_ text;
+	i_nr integer;
+	
+BEGIN
 
-COMMENT ON VIEW greg.v_log_historik IS 'Ændringslog, som registrerer alle handlinger indenfor et givent år. Benyttes i Historik_Ændringslog.xlsx';
+	FOR i_nr IN 1..1 LOOP
+
+		i_ := 'Log';
+
+		EXECUTE FORMAT ('
+			INSERT INTO basis.d_basis_instance VALUES (''%1$s'', %2$s, 2000, NULL, NULL, NULL);', i_, i_nr
+		);
+
+	-- v_log_historik
+
+		EXECUTE FORMAT ('
+			DROP VIEW IF EXISTS greg.v_log_historik_%2$s;
+
+			CREATE VIEW greg.v_log_historik_%2$s AS
+
+			WITH
+
+				subq AS (
+					SELECT 
+						var_heltal AS var
+					FROM basis.d_basis_instance WHERE instance = ''%1$s'' AND instance_nr = %2$s
+				)
+
+			SELECT
+				*
+			FROM greg.f_aendring_log ((SELECT var from subq));
+
+			COMMENT ON VIEW greg.v_log_historik_%2$s IS ''Ændringslog, som registrerer alle handlinger indenfor et givent år. Benyttes i Historik_Ændringslog_%2$s.xlsx'';', i_, i_nr
+		);
+		
+	END LOOP;
+
+END
+
+$$;
 
 -- v_maengder_omraader_underelementer
 
@@ -6860,201 +7137,6 @@ ORDER BY pg_distrikt_nr, underelement_kode;
 
 COMMENT ON VIEW greg.v_maengder_omraader_underelementer IS 'Mængdeoversigt over elementer grupperet pr. område.';
 
--- v_maengder_omraader_underelementer_2
-
-DROP VIEW IF EXISTS greg.v_maengder_omraader_underelementer_2;
-
-CREATE VIEW greg.v_maengder_omraader_underelementer_2 AS
-
-WITH
-
---
--- Element list
---
-
-	base_elements AS ( -- Select a complete (DISTINCT) list of all current elements within each area code from the current data set
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode
-		FROM greg.t_greg_flader a
-		WHERE a.systid_til IS NULL
-
-		UNION
-
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode
-		FROM greg.t_greg_linier a
-		WHERE a.systid_til IS NULL
-
-		UNION
-
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode
-		FROM greg.t_greg_punkter a
-		WHERE a.systid_til IS NULL
-	),
-
---
--- Basic calculations
---
-
-	base_poly AS ( -- Select the area for each element on each area code from the current data set
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode,
-			SUM(ST_Area(a.geometri)) AS areal
-		FROM greg.t_greg_flader a
-		WHERE a.systid_til IS NULL
-		GROUP BY a.arbejdssted, a.underelement_kode
-	),
-
-	base_line AS ( -- Select the length for each element on each area code from the current data set
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode,
-			SUM(ST_Length(a.geometri)) AS laengde
-		FROM greg.t_greg_linier a
-		WHERE a.systid_til IS NULL
-		GROUP BY a.arbejdssted, a.underelement_kode
-	),
-
-	base_point AS ( -- Select the points (MultiPoints are counted for each individual point) for each element on each area code from the current data set
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode,
-			SUM(ST_NumGeometries(a.geometri)) AS antal
-		FROM greg.t_greg_punkter a
-		WHERE a.systid_til IS NULL
-		GROUP BY a.arbejdssted, a.underelement_kode
-	),
-
---
--- Special calculation
---
-
-	spec_ren AS	( -- Select the area for each area code excluding elements where renhold is set to false from the current data set
-		SELECT
-			a.arbejdssted,
-			SUM(ST_Area(a.geometri)) AS areal -- Relevant for speciel_sql = 'REN'
-		FROM greg.t_greg_flader a
-		LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-		WHERE ue.renhold IS TRUE AND a.systid_til IS NULL
-		GROUP BY arbejdssted
-	),
-
-	spec_poly AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode,
-			(SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_flader', a.versions_id)) AS speciel
-		FROM greg.t_greg_flader a
-		LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-		WHERE systid_til IS NULL AND ue.speciel_sql IS NOT NULL
-	),
-
-	spec_line AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode,
-			(SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_linier', a.versions_id)) AS speciel
-		FROM greg.t_greg_linier a
-		LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-		WHERE systid_til IS NULL AND ue.speciel_sql IS NOT NULL
-	),
-
-	spec_point AS ( -- Select all special calculations for each element on each area code from the current data set
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode,
-			CASE
-				WHEN ue.speciel_sql = 'REN'
-				THEN b.areal
-				ELSE (SELECT speciel::numeric(10,1) FROM greg.spec_calc(ue.speciel_sql, 'greg.t_greg_punkter', a.versions_id))
-			END AS speciel
-		FROM greg.t_greg_punkter a
-		LEFT JOIN spec_ren b ON a.arbejdssted = b.arbejdssted
-		LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-		WHERE systid_til IS NULL AND ue.speciel_sql IS NOT NULL
-	),
-
-	spec_one AS ( -- Select the sum of each special calculation grouped by each element and area code from the three queries above
-		SELECT
-			a.arbejdssted,
-			a.underelement_kode,
-			SUM(a.speciel) AS speciel
-		FROM (
-			SELECT * FROM spec_poly
-			UNION ALL
-			SELECT * FROM spec_line
-			UNION ALL
-			SELECT * FROM spec_point
-		) a
-		GROUP BY a.arbejdssted, a.underelement_kode
-	),
-
---
--- Building the view
---
-
-	view_1 AS ( -- Select amounts of each feature type respectively for each element within each area code
-		SELECT
-			a.*,
-			CASE
-				WHEN ue.udregn_geometri IS TRUE
-				THEN d.antal
-				ELSE NULL
-			END AS antal,
-			CASE
-				WHEN ue.udregn_geometri IS TRUE
-				THEN c.laengde
-				ELSE NULL
-			END AS laengde,
-			CASE
-				WHEN ue.udregn_geometri IS TRUE
-				THEN b.areal
-				ELSE NULL
-			END AS areal,
-			e.speciel
-		FROM base_elements a
-		LEFT JOIN base_poly		b ON a.arbejdssted = b.arbejdssted AND a.underelement_kode = b.underelement_kode
-		LEFT JOIN base_line		c ON a.arbejdssted = c.arbejdssted AND a.underelement_kode = c.underelement_kode
-		LEFT JOIN base_point	d ON a.arbejdssted = d.arbejdssted AND a.underelement_kode = d.underelement_kode
-		LEFT JOIN spec_one		e ON a.arbejdssted = e.arbejdssted AND a.underelement_kode = e.underelement_kode
-		LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-	)
-
--- SELECT full overview with JOINS to look-up TABLES. Price is set to NULL if 0 for Excel purposes
-SELECT
-	dt.pg_distrikt_type,
-	a.arbejdssted,
-	CASE 
-		WHEN a.arbejdssted IS NOT NULL
-		THEN a.arbejdssted || ' ' || om.pg_distrikt_tekst
-		ELSE 'Udenfor område'
-	END AS omraade,
-	he.hovedelement_kode,
-	he.hovedelement_kode || ' - ' || he.hovedelement_tekst AS hovedelement,
-	e.element_kode,
-	e.element_kode || ' ' || e.element_tekst AS element,
-	ue.underelement_kode,
-	ue.underelement_kode || ' ' || ue.underelement_tekst AS underelement,
-	a.antal,
-	a.laengde::numeric(10,1),
-	a.areal::numeric(10,1),
-	ue.speciel_forklaring || ': ' || a.speciel::numeric(10,1) AS speciel
-FROM view_1 a
-LEFT JOIN greg.t_greg_omraader om ON a.arbejdssted = om.pg_distrikt_nr AND om.systid_til IS NULL
-LEFT JOIN basis.d_basis_distrikt_type dt ON om.pg_distrikt_type_kode = dt.pg_distrikt_type_kode
-LEFT JOIN basis.e_basis_underelementer ue ON a.underelement_kode = ue.underelement_kode
-LEFT JOIN basis.e_basis_elementer e ON ue.element_kode = e.element_kode
-LEFT JOIN basis.e_basis_hovedelementer he ON e.hovedelement_kode = he.hovedelement_kode
-WHERE om.aktiv IS TRUE
-ORDER BY pg_distrikt_nr, underelement_kode;
-
-COMMENT ON VIEW greg.v_maengder_omraader_underelementer_2 IS 'Mængdeoversigt over elementer grupperet pr. område. Benyttes i Mængdekort.xlsm.';
-
 -- v_oversigt_elementer
 
 DROP VIEW IF EXISTS greg.v_oversigt_elementer;
@@ -7128,34 +7210,9 @@ COMMENT ON VIEW greg.v_oversigt_litra IS 'Oversigt over litra og højder. Benytt
 
 -- v_oversigt_omraade
 
+DROP VIEW IF EXISTS greg.v_oversigt_omraade;
+
 CREATE VIEW greg.v_oversigt_omraade AS
-
-SELECT
-	a.pg_distrikt_nr as omraadenr,
-	a.pg_distrikt_nr || ' ' || a.pg_distrikt_tekst AS omraade,
-	b.pg_distrikt_type AS arealtype,
-	CASE
-		WHEN a.vejnr IS NOT NULL
-		THEN c.vejnavn || ' ' || a.vejnr || ' - ' || a.postnr || ' ' || postnr_by
-		WHEN a.vejkode IS NOT NULL
-		THEN c.vejnavn || ' - ' || a.postnr || ' ' || postnr_by
-		ELSE a.postnr || ' ' || d.postnr_by
-	END AS adresse,
-	public.ST_Area(a.geometri)::numeric(10,1) AS areal
-FROM greg.t_greg_omraader a
-LEFT JOIN basis.d_basis_distrikt_type b ON a.pg_distrikt_type_kode = b.pg_distrikt_type_kode
-LEFT JOIN basis.d_basis_vejnavn c ON a.vejkode = c.vejkode
-LEFT JOIN basis.d_basis_postnr d ON a.postnr = d.postnr
-WHERE a.aktiv IS TRUE AND a.systid_til IS NULL
-ORDER BY a.pg_distrikt_nr;
-
-COMMENT ON VIEW greg.v_oversigt_omraade IS 'Look-up for aktive områder. Benyttes i Mængdekort.xlsm.';
-
--- v_oversigt_omraade_2
-
-DROP VIEW IF EXISTS greg.v_oversigt_omraade_2;
-
-CREATE VIEW greg.v_oversigt_omraade_2 AS
 
 SELECT
 	a.pg_distrikt_nr || ' ' || a.pg_distrikt_tekst AS omraade,
@@ -7173,7 +7230,7 @@ LEFT JOIN basis.d_basis_distrikt_type d ON a.pg_distrikt_type_kode = d.pg_distri
 WHERE a.aktiv IS TRUE AND a.systid_til IS NULL
 ORDER BY a.pg_distrikt_nr;
 
-COMMENT ON VIEW greg.v_oversigt_omraade_2 IS 'Områdeoversigt. Benyttes i Lister.xlsx.';
+COMMENT ON VIEW greg.v_oversigt_omraade IS 'Områdeoversigt. Benyttes i Lister.xlsx.';
 
 -- Views in schema styles --
 
@@ -8060,7 +8117,7 @@ SELECT
 	a.f_table_name,
 	a.f_geometry_column,
 	a.stylename,
-	regexp_replace(a.styleqml, '<renderer-v2((.|\n)*)</symbols>', (SELECT body FROM styles.v_elements_historik b WHERE b.f_table_name || '_historik' = a.f_table_name)) AS styleqml,
+	regexp_replace(a.styleqml, '<renderer-v2((.|\n)*)</symbols>', (SELECT body FROM styles.v_elements_historik b WHERE b.f_table_name || '_historik_1' = a.f_table_name)) AS styleqml,
 	NULL AS stylesld,
 	a.useasdefault,
 	a.description,
@@ -8121,6 +8178,12 @@ CREATE TRIGGER d_basis_bruger_id_trg_i BEFORE INSERT ON basis.d_basis_bruger_id 
 CREATE TRIGGER d_basis_bruger_id_trg_u BEFORE UPDATE ON basis.d_basis_bruger_id FOR EACH ROW EXECUTE PROCEDURE basis.d_basis_bruger_id_trg();
 
 CREATE TRIGGER v_basis_bruger_id_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_bruger_id FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_bruger_id_trg();
+
+-- d_basis_instance
+
+CREATE TRIGGER d_basis_instance_trg_u BEFORE UPDATE ON basis.d_basis_instance FOR EACH ROW EXECUTE PROCEDURE basis.d_basis_instance_trg();
+
+CREATE TRIGGER v_basis_instance_trg_iud INSTEAD OF INSERT OR DELETE OR UPDATE ON basis.v_basis_instance FOR EACH ROW EXECUTE PROCEDURE basis.v_basis_instance_trg();
 
 -- d_basis_kommunal_kontakt
 
@@ -8254,8 +8317,8 @@ $$
 
 DECLARE
 
-db text;
-role text;
+	db text;
+	role text;
 
 BEGIN
 
@@ -8277,6 +8340,8 @@ BEGIN
 
 	EXECUTE format('GRANT UPDATE ON TABLE basis.v_basis_bruger_id TO %s', role);
 	EXECUTE format('GRANT UPDATE (navn) ON TABLE basis.d_basis_bruger_id TO %s', role);
+	
+	EXECUTE format('GRANT UPDATE ON TABLE basis.v_basis_instance TO %s', role);
 
 
 	EXECUTE format('GRANT USAGE ON SCHEMA greg TO %s', role);
@@ -8298,7 +8363,7 @@ BEGIN
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %s', role);
 
-END;
+END
 
 $$;
 
@@ -8310,8 +8375,8 @@ $$
 
 DECLARE
 
-db text;
-role text;
+	db text;
+	role text;
 
 BEGIN
 
@@ -8333,6 +8398,8 @@ BEGIN
 
 	EXECUTE format('GRANT UPDATE ON TABLE basis.v_basis_bruger_id TO %s', role);
 	EXECUTE format('GRANT UPDATE (navn) ON TABLE basis.d_basis_bruger_id TO %s', role);
+	
+	EXECUTE format('GRANT UPDATE ON TABLE basis.v_basis_instance TO %s', role);
 
 
 	EXECUTE format('GRANT USAGE ON SCHEMA greg TO %s', role);
@@ -8362,7 +8429,7 @@ BEGIN
 	EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %s', role);
 
-END;
+END
 
 $$;
 
@@ -8374,8 +8441,8 @@ $$
 
 DECLARE
 
-db text;
-role text;
+	db text;
+	role text;
 
 BEGIN
 
@@ -8431,7 +8498,7 @@ BEGIN
 	EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA public TO %s', role);
 	EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO %s', role);
 
-END;
+END
 
 $$;
 

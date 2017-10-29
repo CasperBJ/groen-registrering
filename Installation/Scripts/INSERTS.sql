@@ -10179,7 +10179,7 @@ def my_form_open(dialog, layer, feature):
 
 ');
 
-INSERT INTO styles.layer_styles (f_table_schema, f_table_name, f_geometry_column, stylename, useasdefault, description, styleqml) VALUES('greg', 'v_greg_flader_historik', 'geometri', 'HISTORIK', TRUE, 'HISTORIK',
+INSERT INTO styles.layer_styles (f_table_schema, f_table_name, f_geometry_column, stylename, useasdefault, description, styleqml) VALUES('greg', 'v_greg_flader_historik_1', 'geometri', 'HISTORIK', TRUE, 'HISTORIK - Flader',
 '<!DOCTYPE qgis PUBLIC ''http://mrcc.com/qgis.dtd'' ''SYSTEM''>
 <qgis version="2.18.10" simplifyAlgorithm="0" minimumScale="0" maximumScale="8000" simplifyDrawingHints="1" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" readOnly="1" simplifyMaxScale="1" hasScaleBasedVisibilityFlag="1" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
  <edittypes>
@@ -11668,7 +11668,7 @@ def my_form_open(dialog, layer, feature):
 
 ');
 
-INSERT INTO styles.layer_styles (f_table_schema, f_table_name, f_geometry_column, stylename, useasdefault, description, styleqml) VALUES('greg', 'v_greg_linier_historik', 'geometri', 'HISTORIK', TRUE, 'HISTORIK',
+INSERT INTO styles.layer_styles (f_table_schema, f_table_name, f_geometry_column, stylename, useasdefault, description, styleqml) VALUES('greg', 'v_greg_linier_historik_1', 'geometri', 'HISTORIK', TRUE, 'HISTORIK - Linier',
 '<!DOCTYPE qgis PUBLIC ''http://mrcc.com/qgis.dtd'' ''SYSTEM''>
 <qgis version="2.18.10" simplifyAlgorithm="0" minimumScale="0" maximumScale="5000" simplifyDrawingHints="1" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" readOnly="1" simplifyMaxScale="1" hasScaleBasedVisibilityFlag="1" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
  <edittypes>
@@ -12745,7 +12745,7 @@ def my_form_open(dialog, layer, feature):
 
 ');
 
-INSERT INTO styles.layer_styles (f_table_schema, f_table_name, f_geometry_column, stylename, useasdefault, description, styleqml) VALUES('greg', 'v_greg_punkter_historik', 'geometri', 'HISTORIK', TRUE, 'HISTORIK',
+INSERT INTO styles.layer_styles (f_table_schema, f_table_name, f_geometry_column, stylename, useasdefault, description, styleqml) VALUES('greg', 'v_greg_punkter_historik_1', 'geometri', 'HISTORIK', TRUE, 'HISTORIK - Punkter',
 '<!DOCTYPE qgis PUBLIC ''http://mrcc.com/qgis.dtd'' ''SYSTEM''>
 <qgis version="2.18.10" simplifyAlgorithm="0" minimumScale="0" maximumScale="2500" simplifyDrawingHints="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" readOnly="1" simplifyMaxScale="1" hasScaleBasedVisibilityFlag="1" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
  <edittypes>
