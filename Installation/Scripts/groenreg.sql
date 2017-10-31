@@ -5938,7 +5938,8 @@ SELECT
 	(SELECT int_ FROM greg.variabel('oprind')) AS oprind,
 	(SELECT int_ FROM greg.variabel('status')) AS status,
 	(SELECT int_ FROM greg.variabel('off_')) AS off_,
-	(SELECT int_ FROM greg.variabel('tilstand')) AS tilstand;
+	(SELECT int_ FROM greg.variabel('tilstand')) AS tilstand,
+	(SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '/' AS db;
 
 COMMENT ON VIEW basis.v_default IS 'Indeholder diverse indstillinger til QGIS.';
 
