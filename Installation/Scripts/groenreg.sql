@@ -5818,12 +5818,12 @@ SELECT
 		THEN CASE
 				WHEN bruger_id IN (SELECT rolname FROM pg_catalog.pg_roles)
 				THEN bruger_id
-				ELSE NULL::text
+				ELSE 'Intet login'
 			END
 		ELSE CASE
 				WHEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '/' || bruger_id IN (SELECT rolname FROM pg_catalog.pg_roles)
 				THEN (SELECT catalog_name FROM information_schema.information_schema_catalog_name) || '/' || bruger_id
-				ELSE NULL::text
+				ELSE 'Intet login'
 			END
 	END AS login,
 	navn,
