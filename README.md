@@ -3,7 +3,7 @@ Håndtering af grønne registreringer i Open Source
 Version 2
 
 Af
-Casper Bertelsen, have- og parkingenigørstuderende
+Casper Bertelsen, have- og parkingeniørstuderende
 
 Kontakt: casperbj94@gmail.com
 
